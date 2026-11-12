@@ -1,0 +1,133 @@
+[
+  {
+    "id": "crimson-memory-ls-shirt",
+    "name": "Crimson Memory LS Shirt",
+    "type": "shirt",
+    "category": "Shirts",
+    "price": 3800,
+    "colors": [
+      { "id": "optic-white", "name": "Optic White", "hex": "#f4f4f1", "stock": { "S": 2, "M": 4, "L": 3, "XL": 1, "XXL": 0 } },
+      { "id": "bone", "name": "Bone", "hex": "#e3dac7", "stock": { "S": 0, "M": 2, "L": 2, "XL": 1, "XXL": 0 } }
+    ],
+    "print": { "front": [{ "k": "drip" }], "back": [{ "k": "hands" }] },
+    "description": "Crisp poplin shirt with a crimson drip on the chest and handprints across the back. Each one is painted by hand, so no two are the same.",
+    "details": ["100% cotton poplin", "Relaxed fit, dropped shoulder", "Hand-painted, every piece is unique", "Wash cold, inside out"],
+    "published": true,
+    "createdAt": "2026-11-01T09:00:00.000Z"
+  },
+  {
+    "id": "its-us-never-them-tee",
+    "name": "It's Us Never Them Tee",
+    "type": "tee",
+    "category": "Tees",
+    "price": 2400,
+    "colors": [
+      { "id": "black", "name": "Black", "hex": "#1b1b1c", "stock": { "S": 4, "M": 6, "L": 5, "XL": 2, "XXL": 1 } },
+      { "id": "bubblegum", "name": "Bubblegum", "hex": "#f2a8bf", "stock": { "S": 3, "M": 3, "L": 1, "XL": 0, "XXL": 0 } },
+      { "id": "taxi-yellow", "name": "Taxi Yellow", "hex": "#f5d321", "stock": { "S": 2, "M": 4, "L": 4, "XL": 2, "XXL": 0 } }
+    ],
+    "print": { "front": [{ "k": "text", "t": "IT'S US\nNEVER\nTHEM" }], "back": [{ "k": "logo", "t": "RAIL · DROP 01" }] },
+    "description": "Heavyweight boxy tee with a cracked screen print across the chest. Three colours, same message.",
+    "details": ["240gsm cotton jersey", "Boxy, cropped fit", "Cracked plastisol print", "Pre-shrunk"],
+    "published": true,
+    "createdAt": "2026-11-01T09:01:00.000Z"
+  },
+  {
+    "id": "distressed-logo-tank",
+    "name": "Distressed Logo Tank",
+    "type": "tank",
+    "category": "Tanks",
+    "price": 2200,
+    "colors": [
+      { "id": "washed-black", "name": "Washed Black", "hex": "#2b2c2e", "stock": { "S": 2, "M": 3, "L": 3, "XL": 1, "XXL": 0 } },
+      { "id": "sand", "name": "Sand", "hex": "#cbbb9e", "stock": { "S": 1, "M": 2, "L": 2, "XL": 0, "XXL": 0 } }
+    ],
+    "print": { "front": [{ "k": "text", "t": "RAIL\nWRLD" }, { "k": "distress" }], "back": [{ "k": "distress" }] },
+    "description": "Vintage-washed tank with hand-cut holes and the RAIL WRLD logo. Wears in, never out.",
+    "details": ["Vintage wash", "Oversized fit", "Distressed by hand", "Raw-cut armholes"],
+    "published": true,
+    "createdAt": "2026-11-01T09:02:00.000Z"
+  },
+  {
+    "id": "rift-valley-varsity",
+    "name": "Rift Valley Varsity Jacket",
+    "type": "jacket",
+    "category": "Outerwear",
+    "price": 6500,
+    "colors": [
+      { "id": "black-cream", "name": "Black / Cream", "hex": "#1d1d1f", "sleeve": "#ece5d3", "trim": "#ece5d3", "stock": { "S": 1, "M": 2, "L": 2, "XL": 1, "XXL": 0 } },
+      { "id": "forest-cream", "name": "Forest / Cream", "hex": "#22412f", "sleeve": "#ece5d3", "trim": "#ece5d3", "stock": { "S": 0, "M": 1, "L": 2, "XL": 1, "XXL": 1 } }
+    ],
+    "print": { "front": [{ "k": "letter", "t": "R" }], "back": [{ "k": "text", "t": "NAKURU\n254" }] },
+    "description": "Wool-blend varsity with contrast sleeves, snap front and a chenille R on the chest.",
+    "details": ["Wool-blend body", "Faux-leather look sleeves", "Snap buttons", "Quilted lining"],
+    "published": true,
+    "createdAt": "2026-11-01T09:03:00.000Z"
+  },
+  {
+    "id": "heavyweight-hoodie",
+    "name": "Heavyweight Hoodie",
+    "type": "hoodie",
+    "category": "Outerwear",
+    "price": 4200,
+    "colors": [
+      { "id": "heather-grey", "name": "Heather Grey", "hex": "#a9abaa", "stock": { "S": 3, "M": 5, "L": 4, "XL": 2, "XXL": 1 } },
+      { "id": "olive", "name": "Olive", "hex": "#5b6142", "stock": { "S": 1, "M": 3, "L": 3, "XL": 1, "XXL": 0 } },
+      { "id": "black", "name": "Black", "hex": "#1c1c1d", "stock": { "S": 2, "M": 4, "L": 4, "XL": 3, "XXL": 1 } }
+    ],
+    "print": { "front": [{ "k": "logo", "t": "RAIL" }], "back": [{ "k": "text", "t": "SLOW\nDAYS" }] },
+    "description": "450gsm brushed fleece hoodie. Double-layer hood, kangaroo pocket, back print.",
+    "details": ["450gsm brushed fleece", "Double-layer hood", "Ribbed cuffs and hem", "Unisex fit"],
+    "published": true,
+    "createdAt": "2026-11-01T09:04:00.000Z"
+  },
+  {
+    "id": "matchday-jersey",
+    "name": "Matchday Jersey",
+    "type": "jersey",
+    "category": "Tees",
+    "price": 3200,
+    "colors": [
+      { "id": "harambee-yellow", "name": "Harambee Yellow", "hex": "#f3cf1d", "trim": "#1f7a3a", "stock": { "S": 2, "M": 4, "L": 4, "XL": 2, "XXL": 1 } },
+      { "id": "home-green", "name": "Home Green", "hex": "#1f7a3a", "trim": "#f3cf1d", "stock": { "S": 1, "M": 2, "L": 3, "XL": 1, "XXL": 0 } }
+    ],
+    "print": { "front": [{ "k": "text", "t": "RAIL" }, { "k": "badge" }], "back": [{ "k": "number", "t": "NKR", "n": "10" }] },
+    "description": "Breathable football jersey with contrast collar and side stripes. Number 10 on the back.",
+    "details": ["Recycled poly mesh", "Regular fit", "Woven crest", "Quick dry"],
+    "published": true,
+    "createdAt": "2026-11-01T09:05:00.000Z"
+  },
+  {
+    "id": "everyday-box-tee",
+    "name": "Everyday Box Tee",
+    "type": "tee",
+    "category": "Tees",
+    "price": 1800,
+    "colors": [
+      { "id": "white", "name": "White", "hex": "#f6f6f3", "stock": { "S": 5, "M": 8, "L": 8, "XL": 4, "XXL": 2 } },
+      { "id": "stone", "name": "Stone", "hex": "#bfc2bb", "stock": { "S": 3, "M": 5, "L": 4, "XL": 2, "XXL": 0 } },
+      { "id": "navy", "name": "Navy", "hex": "#1f2a44", "stock": { "S": 2, "M": 4, "L": 4, "XL": 2, "XXL": 1 } }
+    ],
+    "print": { "front": [{ "k": "logo", "t": "RAIL" }], "back": [] },
+    "description": "The one you wear every day. Heavy cotton, boxy cut, small chest logo.",
+    "details": ["220gsm cotton", "Boxy fit", "Embroidered chest logo", "Pre-shrunk"],
+    "published": true,
+    "createdAt": "2026-11-01T09:06:00.000Z"
+  },
+  {
+    "id": "sky-oxford-shirt",
+    "name": "Sky Oxford Shirt",
+    "type": "shirt",
+    "category": "Shirts",
+    "price": 3400,
+    "colors": [
+      { "id": "sky", "name": "Sky", "hex": "#9fb9d6", "stock": { "S": 2, "M": 3, "L": 3, "XL": 2, "XXL": 0 } },
+      { "id": "white", "name": "White", "hex": "#f3f3f0", "stock": { "S": 1, "M": 3, "L": 2, "XL": 1, "XXL": 0 } }
+    ],
+    "print": { "front": [], "back": [{ "k": "logo", "t": "RAIL" }] },
+    "description": "Soft oxford cloth shirt with a button-down collar. Wear it buttoned or open over a tee.",
+    "details": ["100% cotton oxford", "Button-down collar", "Relaxed fit", "Back yoke logo"],
+    "published": true,
+    "createdAt": "2026-11-01T09:07:00.000Z"
+  }
+]
