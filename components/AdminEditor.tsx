@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState, useTransition } from "react";
-import { removeProduct, saveOrder, saveProduct, uploadImage } from "@/app/admin/actions";
+import { createImageUpload, removeProduct, saveOrder, saveProduct } from "@/app/admin/actions";
 import { formatKES, shade, totalStock } from "@/lib/format";
 import {
   GARMENT_LABELS,
@@ -19,6 +19,7 @@ import {
 } from "@/lib/types";
 import { Garment } from "./Garment";
 import { ColorLayers, Flipper, HangTags } from "./Pieces";
+import PhotoCapture from "./PhotoCapture";
 
 const blankColor = (): Colorway => ({
   id: "",
@@ -110,12 +111,20 @@ export default function AdminEditor({ products }: { products: Product[] }) {
 
   const upload = (ci: number, side: Side, file: File | undefined) => {
     if (!file) return;
-    const fd = new FormData();
-    fd.set("file", file);
     start(async () => {
-      const res = await uploadImage(fd);
+      // The server checks type/size and signs a one-time URL; the photo goes straight to Supabase Storage.
+      const res = await createImageUpload({ type: file.type, size: file.size });
       if (!res.ok) return setMsg({ kind: "error", text: res.error });
-      setColor(ci, { images: { ...draft.colors[ci].images, [side]: res.url } });
+      const body = new FormData();
+      body.append("cacheControl", "31536000");
+      body.append("", file);
+      const put = await fetch(res.uploadUrl, {
+        method: "PUT",
+        body,
+        headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "" },
+      }).catch(() => undefined);
+      if (!put?.ok) return setMsg({ kind: "error", text: "Upload failed. Check your connection and try again." });
+      setColor(ci, { images: { ...draft.colors[ci].images, [side]: res.publicUrl } });
       setPreviewColor(ci);
       setPreviewSide(side);
     });
@@ -288,7 +297,7 @@ export default function AdminEditor({ products }: { products: Product[] }) {
                           </button>
                         </span>
                       ) : (
-                        <input type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={(e) => upload(i, side, e.target.files?.[0])} />
+                        <PhotoCapture disabled={pending} onUse={(file) => upload(i, side, file)} />
                       )}
                     </div>
                   ))}

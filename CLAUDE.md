@@ -7,16 +7,18 @@ Clothing store where every product hangs on one clothes rail. Hover pulls a piec
 - `npm run build && npm start` — production
 - `npm run typecheck` — run after every change; must pass
 - Admin: `/admin` (HTTP Basic auth; needs `ADMIN_PASSWORD` in `.env.local`, see `.env.example`)
+- `npm run db:seed` — load `data/products.json` (+ local `uploads/`) into Supabase
+- Schema: `supabase/migrations/*.sql` (`supabase db push`, or paste into the SQL editor)
 
 ## Stack (pinned, do not upgrade without asking)
-Next.js 15.5 App Router · React 19.1 · TypeScript 5.9 strict · `motion` 12 (import from `motion/react`) · plain CSS (`app/globals.css`, no Tailwind) · fonts self-hosted via `@fontsource` (Archivo variable with width axis, JetBrains Mono).
+Next.js 15.5 App Router · React 19.1 · TypeScript 5.9 strict · `motion` 12 (import from `motion/react`) · plain CSS (`app/globals.css`, no Tailwind) · fonts self-hosted via `@fontsource` (Archivo variable with width axis, JetBrains Mono) · Supabase (`@supabase/supabase-js`, server-only) for Postgres + Storage (project in eu-west-3 Paris) · deployed on Vercel, functions pinned to `cdg1` in `vercel.json` to sit next to the database.
 
 ## Map
 ```
 app/page.tsx                 rack page (static, revalidated on admin save)
 app/p/[id]/page.tsx          full product page (SSG via generateStaticParams)
 app/admin/page.tsx + actions.ts   admin UI + server actions (save, delete, reorder, upload)
-app/uploads/[file]/route.ts  serves uploaded photos from UPLOAD_DIR
+app/uploads/[file]/route.ts  redirects legacy /uploads/<file> links to the Storage bucket
 middleware.ts                Basic auth for /admin
 components/Store.tsx         rack + item view + all transitions (the core)
 components/Pieces.tsx        ColorLayers (wipe), Flipper, HangTags, SizePicker
@@ -25,13 +27,16 @@ components/BagProvider.tsx   cart context, persisted to localStorage
 components/BagDrawer.tsx     cart drawer + WhatsApp order + toast
 components/ProductDetail.tsx /p/[id] client view
 components/AdminEditor.tsx   admin list, form, live preview
-lib/db.ts                    ONLY place that reads/writes products (JSON file now, MySQL later)
+lib/db.ts                    ONLY place that reads/writes products (Supabase; sample JSON fallback when unconfigured)
+lib/supabase.ts              server-only Supabase clients (anon = RLS/published, service role = admin)
+supabase/migrations/         schema, RLS, upsert_product/reorder_products functions, product-images bucket
+scripts/seed.mjs             seeds Supabase from data/products.json
 lib/types.ts                 Product, Colorway, Print, Size; lib/format.ts helpers; lib/config.ts store name/ticker
-data/products.json           product data (8 sample pieces)
+data/products.json           seed data (8 sample pieces); also the read-only fallback before Supabase is set up
 ```
 
 ## Data model (lib/types.ts)
-Product → many Colorway. Stock is per colour per size (`S M L XL XXL`). Price is whole KES. A colourway may have `images.front/back` (real photos); if absent the SVG illustration is drawn using `type` + `print`. Rack order = array order in the data file (admin ↑/↓ changes it). `published: false` = draft, hidden from the store.
+Product → many Colorway. Stock is per colour per size (`S M L XL XXL`). Price is whole KES. A colourway may have `images.front/back` (real photos); if absent the SVG illustration is drawn using `type` + `print`. Rack order = `products.position` (admin ↑/↓ changes it). Reads come from the `product_documents` view, already shaped as `Product`. `published: false` = draft, hidden from the store.
 
 ## The rack UI spec (source of truth, keep it exactly)
 1. **Rack**: one rod; pieces edge-on at `rotateY(64deg)` in `--slot` wide slots, overlapping. Pieces after the hovered one turn the other way (`-64deg`).
@@ -51,7 +56,9 @@ Product → many Colorway. Stock is per colour per size (`S M L XL XXL`). Price 
 - Garments on the rack must be `pointer-events: none`. The slot button is the hit target.
 - Rack hover is set on `pointerenter` (mouse only) and on `:focus-visible` focus. Do not set it on plain focus, or touch's first tap opens the piece.
 - Number inputs: use `step="any"`. A `step` with `min` silently blocks form submit for "round" values.
-- Uploaded files are served by `app/uploads/[file]/route.ts`, not `/public` (Next only serves `/public` files that existed at build time).
+- Photos live in the public Supabase Storage bucket `product-images`. The browser uploads them directly with a signed URL from `createImageUpload()` (Vercel caps function bodies at 4.5 MB). Never write to the local filesystem at runtime.
+- `SUPABASE_SERVICE_ROLE_KEY` is server-only: use it only via `lib/supabase.ts` (guarded by `server-only`). Never give it a `NEXT_PUBLIC_` prefix.
+- Product writes go through the Postgres functions (`upsert_product`, `reorder_products`) so each save is one transaction. Schema changes = a new migration file, never edit an applied one.
 - Styling: add tokens to `:root` in globals.css, reuse `.btn`, `.chip`, `.seg`, `.size`. Keep the gallery-wall look (light wall `--wall`, ink, lime only for logo and ticker).
 - Server actions validate everything (`clean()` in actions.ts). The client is never trusted for price or stock.
 - Money: integers in KES; format only with `formatKES()`.
