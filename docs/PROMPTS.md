@@ -4,7 +4,7 @@ Paste one prompt per session, in order. Each assumes CLAUDE.md is loaded.
 
 ---
 
-## Phase 2: MySQL with Prisma
+## Phase 2: MySQL with Prisma — SUPERSEDED (done with Supabase Postgres, see supabase/migrations)
 
 ```
 Move product storage from data/products.json to MySQL using Prisma.
@@ -20,7 +20,7 @@ Done when: typecheck + build pass, `npx prisma migrate dev && npx prisma db seed
 
 ```
 Add M-Pesa checkout (Daraja STK Push) with an Order table.
-Scope: new app/checkout/page.tsx, new app/api/mpesa/callback/route.ts, new lib/mpesa.ts, Order + OrderLine in Prisma, enable the "Pay with M-Pesa" button in components/BagDrawer.tsx. No other UI changes.
+Scope: new app/checkout/page.tsx, new app/api/mpesa/callback/route.ts, new lib/mpesa.ts, Order + OrderLine as a new Supabase migration (decrement stock in a Postgres function), enable the "Pay with M-Pesa" button in components/BagDrawer.tsx. No other UI changes.
 - Checkout form: name, phone (07XX/01XX → 2547XXXXXXXX), delivery town, note.
 - Server re-prices every bag line from the database and checks stock. Never trust client prices.
 - Create Order(status=PENDING), send STK push, page polls order status every 3s for up to 90s.
@@ -50,7 +50,7 @@ Scope: app/admin/actions.ts uploadImage only, plus next.config.ts if needed.
 Done when: typecheck + build pass and uploads under 6 MB come out under 250 KB.
 ```
 
-## Phase 6: Deploy to the VPS
+## Phase 6: Deploy to the VPS — SUPERSEDED (deploying on Vercel)
 
 ```
 Prepare production deploy on an Ubuntu VPS (Nginx + PM2).
