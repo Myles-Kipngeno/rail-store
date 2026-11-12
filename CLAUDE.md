@@ -11,7 +11,7 @@ Clothing store where every product hangs on one clothes rail. Hover pulls a piec
 - Schema: `supabase/migrations/*.sql` (`supabase db push`, or paste into the SQL editor)
 
 ## Stack (pinned, do not upgrade without asking)
-Next.js 15.5 App Router · React 19.1 · TypeScript 5.9 strict · `motion` 12 (import from `motion/react`) · plain CSS (`app/globals.css`, no Tailwind) · fonts self-hosted via `@fontsource` (Archivo variable with width axis, JetBrains Mono) · Supabase (`@supabase/supabase-js`, server-only) for Postgres + Storage · deployed on Vercel.
+Next.js 15.5 App Router · React 19.1 · TypeScript 5.9 strict · `motion` 12 (import from `motion/react`) · plain CSS (`app/globals.css`, no Tailwind) · fonts self-hosted via `@fontsource` (Archivo variable with width axis, JetBrains Mono) · Supabase (`@supabase/supabase-js`, server-only) for Postgres + Storage (project in eu-west-3 Paris) · deployed on Vercel, functions pinned to `cdg1` in `vercel.json` to sit next to the database.
 
 ## Map
 ```
