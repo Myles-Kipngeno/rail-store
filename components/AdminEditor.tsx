@@ -19,6 +19,7 @@ import {
 } from "@/lib/types";
 import { Garment } from "./Garment";
 import { ColorLayers, Flipper, HangTags } from "./Pieces";
+import PhotoCapture from "./PhotoCapture";
 
 const blankColor = (): Colorway => ({
   id: "",
@@ -296,7 +297,7 @@ export default function AdminEditor({ products }: { products: Product[] }) {
                           </button>
                         </span>
                       ) : (
-                        <input type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={(e) => upload(i, side, e.target.files?.[0])} />
+                        <PhotoCapture disabled={pending} onUse={(file) => upload(i, side, file)} />
                       )}
                     </div>
                   ))}
