@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { deleteProduct, getProduct, getProducts, reorderProducts, upsertProduct } from "@/lib/db";
-import { IMAGE_BUCKET, imageUrlPrefix, supabaseAdmin, supabaseConfigured } from "@/lib/supabase";
+import { IMAGE_BUCKET, imageUrlPrefix, supabaseAdmin, supabaseConfigured, supabasePublicKey } from "@/lib/supabase";
 import { isHex, slugify } from "@/lib/format";
 import { GARMENT_TYPES, PRINT_KINDS, SIZES, type Product } from "@/lib/types";
 
@@ -127,7 +127,7 @@ export async function saveOrder(ids: string[]): Promise<Result> {
  * Vercel function (its request body limit is 4.5 MB). The bucket enforces type and size again.
  */
 export async function createImageUpload(meta: { type: string; size: number }): Promise<
-  Result<{ uploadUrl: string; publicUrl: string }>
+  Result<{ uploadUrl: string; publicUrl: string; apiKey: string }>
 > {
   if (!supabaseConfigured) return { ok: false, error: "Photo uploads need Supabase. Add the keys to .env.local." };
   const ext = EXT[meta?.type];
@@ -137,5 +137,5 @@ export async function createImageUpload(meta: { type: string; size: number }): P
   const storage = supabaseAdmin().storage.from(IMAGE_BUCKET);
   const { data, error } = await storage.createSignedUploadUrl(name);
   if (error || !data) return { ok: false, error: "Couldn't start the upload. Try again." };
-  return { ok: true, uploadUrl: data.signedUrl, publicUrl: storage.getPublicUrl(name).data.publicUrl };
+  return { ok: true, uploadUrl: data.signedUrl, publicUrl: storage.getPublicUrl(name).data.publicUrl, apiKey: supabasePublicKey ?? "" };
 }

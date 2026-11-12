@@ -121,7 +121,7 @@ export default function AdminEditor({ products }: { products: Product[] }) {
       const put = await fetch(res.uploadUrl, {
         method: "PUT",
         body,
-        headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "" },
+        headers: { apikey: res.apiKey },
       }).catch(() => undefined);
       if (!put?.ok) return setMsg({ kind: "error", text: "Upload failed. Check your connection and try again." });
       setColor(ci, { images: { ...draft.colors[ci].images, [side]: res.publicUrl } });
