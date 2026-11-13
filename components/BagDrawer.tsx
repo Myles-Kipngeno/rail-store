@@ -75,14 +75,6 @@ export function BagDrawer() {
                           <span>
                             {l.colorName} · {l.size}
                           </span>
-                          <button
-                            type="button"
-                            className="bag-remove"
-                            onClick={() => bag.remove(k)}
-                            aria-label={`Remove ${l.name}, ${l.colorName}, ${l.size}`}
-                          >
-                            Remove
-                          </button>
                         </div>
                         <div className="qty" aria-label="Quantity">
                           <button onClick={() => bag.setQty(k, l.qty - 1)} aria-label="One less">
@@ -94,6 +86,15 @@ export function BagDrawer() {
                           </button>
                         </div>
                         <span className="bag-price">{formatKES(l.price * l.qty)}</span>
+                        <button
+                          type="button"
+                          className="bag-remove"
+                          onClick={() => bag.remove(k)}
+                          aria-label={`Remove ${l.name}, ${l.colorName}, ${l.size}`}
+                          title="Remove"
+                        >
+                          <TrashIcon />
+                        </button>
                       </motion.li>
                     );
                   })}
@@ -141,5 +142,24 @@ export function BagDrawer() {
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.75 6.75v4.5M9.25 6.75v4.5" />
+    </svg>
   );
 }

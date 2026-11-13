@@ -1004,7 +1004,7 @@ button {
 .bag-line {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) auto;
-  grid-template-areas: "sw meta price" "sw qty qty";
+  grid-template-areas: "sw meta price" "sw qty del";
   gap: 6px 12px;
   padding: 14px 0;
   border-bottom: 1px solid var(--line);
@@ -1029,19 +1029,33 @@ button {
   font-size: 12px;
 }
 .bag-remove {
-  justify-self: start;
-  border: 0;
+  grid-area: del;
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  width: 36px; /* matches the stepper's height on mouse/trackpad */
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   background: none;
-  padding: 6px 0 4px; /* taller tap target without moving the text much */
-  font-size: 11px;
   color: var(--muted);
-  text-underline-offset: 3px;
   cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
 }
 .bag-remove:hover,
 .bag-remove:focus-visible {
   color: var(--ink);
-  text-decoration: underline;
+  border-color: var(--ink);
+}
+@media (pointer: coarse) {
+  /* 44×44 tap target on touch screens */
+  .bag-remove {
+    width: 44px;
+    height: 44px;
+  }
 }
 .bag-line .qty {
   grid-area: qty;
