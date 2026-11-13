@@ -1028,6 +1028,21 @@ button {
   color: var(--muted);
   font-size: 12px;
 }
+.bag-remove {
+  justify-self: start;
+  border: 0;
+  background: none;
+  padding: 6px 0 4px; /* taller tap target without moving the text much */
+  font-size: 11px;
+  color: var(--muted);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.bag-remove:hover,
+.bag-remove:focus-visible {
+  color: var(--ink);
+  text-decoration: underline;
+}
 .bag-line .qty {
   grid-area: qty;
   justify-self: start;

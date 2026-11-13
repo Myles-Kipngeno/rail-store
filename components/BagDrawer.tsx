@@ -52,45 +52,53 @@ export function BagDrawer() {
                 </button>
               </header>
 
-              {bag.lines.length === 0 ? (
+              {bag.lines.length === 0 && (
                 <p className="drawer-empty">Your bag is empty. Pull something off the rack.</p>
-              ) : (
-                <ul className="bag-list">
-                  <AnimatePresence initial={false}>
-                    {bag.lines.map((l) => {
-                      const k = lineKey(l);
-                      return (
-                        <motion.li
-                          key={k}
-                          layout
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, x: 40 }}
-                          className="bag-line"
-                        >
-                          <span className="bag-swatch" style={{ background: l.hex }} />
-                          <div className="bag-meta">
-                            <strong>{l.name}</strong>
-                            <span>
-                              {l.colorName} · {l.size}
-                            </span>
-                          </div>
-                          <div className="qty" aria-label="Quantity">
-                            <button onClick={() => bag.setQty(k, l.qty - 1)} aria-label="One less">
-                              −
-                            </button>
-                            <span>{l.qty}</span>
-                            <button onClick={() => bag.setQty(k, l.qty + 1)} aria-label="One more">
-                              +
-                            </button>
-                          </div>
-                          <span className="bag-price">{formatKES(l.price * l.qty)}</span>
-                        </motion.li>
-                      );
-                    })}
-                  </AnimatePresence>
-                </ul>
               )}
+              {/* Always mounted, so the last line's exit animation still plays when it is removed. */}
+              <ul className="bag-list">
+                <AnimatePresence initial={false}>
+                  {bag.lines.map((l) => {
+                    const k = lineKey(l);
+                    return (
+                      <motion.li
+                        key={k}
+                        layout
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: 40 }}
+                        className="bag-line"
+                      >
+                        <span className="bag-swatch" style={{ background: l.hex }} />
+                        <div className="bag-meta">
+                          <strong>{l.name}</strong>
+                          <span>
+                            {l.colorName} · {l.size}
+                          </span>
+                          <button
+                            type="button"
+                            className="bag-remove"
+                            onClick={() => bag.remove(k)}
+                            aria-label={`Remove ${l.name}, ${l.colorName}, ${l.size}`}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="qty" aria-label="Quantity">
+                          <button onClick={() => bag.setQty(k, l.qty - 1)} aria-label="One less">
+                            −
+                          </button>
+                          <span>{l.qty}</span>
+                          <button onClick={() => bag.setQty(k, l.qty + 1)} aria-label="One more">
+                            +
+                          </button>
+                        </div>
+                        <span className="bag-price">{formatKES(l.price * l.qty)}</span>
+                      </motion.li>
+                    );
+                  })}
+                </AnimatePresence>
+              </ul>
 
               {bag.lines.length > 0 && (
                 <footer className="drawer-foot">
