@@ -79,3 +79,117 @@ export async function addSubscriber(email: string, source = "home") {
     .upsert({ email, source }, { onConflict: "email", ignoreDuplicates: true });
   if (error) fail("addSubscriber", error);
 }
+
+// ---------------------------------------------------------------- orders (M-Pesa checkout; service role only)
+export type OrderStatus = "PENDING" | "PAID" | "FAILED" | "NEEDS_REVIEW";
+
+export interface NewOrder {
+  name: string;
+  phone: string;
+  town: string;
+  note: string;
+  total_kes: number;
+}
+
+export interface NewOrderLine {
+  product_id: string;
+  colorway_id: string;
+  size: string;
+  qty: number;
+  unit_price_kes: number;
+}
+
+export interface OrderRow extends NewOrder {
+  id: string;
+  status: OrderStatus;
+  checkout_request_id: string | null;
+  mpesa_receipt: string | null;
+  result_desc: string | null;
+  created_at: string;
+  paid_at: string | null;
+}
+
+/** True when orders can be stored (they need Supabase; the sample rack is read-only). */
+export const ordersEnabled = !useSample;
+
+/** Inserts the order (PENDING) and its lines in one transaction. Returns the order id. */
+export async function createOrder(order: NewOrder, lines: NewOrderLine[]): Promise<string> {
+  if (useSample) readOnly();
+  const { data, error } = await supabaseAdmin().rpc("create_order", { o: order, lines });
+  if (error) fail("createOrder", error);
+  return data as string;
+}
+
+export async function setOrderCheckoutRequest(id: string, checkoutRequestId: string) {
+  const { error } = await supabaseAdmin().from("orders").update({ checkout_request_id: checkoutRequestId }).eq("id", id);
+  if (error) fail("setOrderCheckoutRequest", error);
+}
+
+export async function getOrder(id: string): Promise<OrderRow | undefined> {
+  if (useSample) return undefined;
+  const { data, error } = await supabaseAdmin().from("orders").select("*").eq("id", id).maybeSingle();
+  if (error) fail("getOrder", error);
+  return (data as OrderRow | null) ?? undefined;
+}
+
+export async function getOrderByCheckoutRequest(checkoutRequestId: string): Promise<OrderRow | undefined> {
+  if (useSample) return undefined;
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select("*")
+    .eq("checkout_request_id", checkoutRequestId)
+    .maybeSingle();
+  if (error) fail("getOrderByCheckoutRequest", error);
+  return (data as OrderRow | null) ?? undefined;
+}
+
+/** PENDING → FAILED. Never touches an order that is already settled. Returns whether it changed. */
+export async function failPendingOrder(id: string, resultDesc: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .update({ status: "FAILED", result_desc: resultDesc.slice(0, 300) })
+    .eq("id", id)
+    .eq("status", "PENDING")
+    .select("id");
+  if (error) fail("failPendingOrder", error);
+  return (data?.length ?? 0) > 0;
+}
+
+/**
+ * Money was taken but the order can't simply be PAID (wrong amount, or it was already marked
+ * FAILED): keep the receipt, no stock change, and leave it for a person. PENDING/FAILED only.
+ */
+export async function flagOrderForReview(id: string, receipt: string | null, resultDesc: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .update({
+      status: "NEEDS_REVIEW",
+      result_desc: resultDesc.slice(0, 300),
+      paid_at: new Date().toISOString(),
+      ...(receipt ? { mpesa_receipt: receipt } : {}),
+    })
+    .eq("id", id)
+    .in("status", ["PENDING", "FAILED"])
+    .select("id");
+  if (error) fail("flagOrderForReview", error);
+  return (data?.length ?? 0) > 0;
+}
+
+export type MarkPaidResult = {
+  result: "paid" | "needs_review" | "receipt_added" | "noop" | "not_found";
+  product_ids: string[];
+};
+
+/**
+ * mark_order_paid() (one transaction): PENDING → PAID with stock taken out, or NEEDS_REVIEW if
+ * any line lacks stock. On an order already PAID without a receipt it only fills the receipt in.
+ */
+export async function markOrderPaid(id: string, receipt: string | null, paidAt: Date): Promise<MarkPaidResult> {
+  const { data, error } = await supabaseAdmin().rpc("mark_order_paid", {
+    order_id: id,
+    receipt,
+    paid_at: paidAt.toISOString(),
+  });
+  if (error) fail("markOrderPaid", error);
+  return data as MarkPaidResult;
+}
