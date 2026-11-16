@@ -3,7 +3,7 @@
 import { motion, useAnimate, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { totalStock } from "@/lib/format";
-import { SIZES, type Colorway, type Product, type Side, type Size } from "@/lib/types";
+import type { Colorway, Product, Side, Size } from "@/lib/types";
 import { Garment } from "./Garment";
 
 export const EASE = [0.2, 0.8, 0.2, 1] as const;
@@ -112,11 +112,14 @@ export function HangTags({
 }
 
 export function SizePicker({
+  sizes,
   color,
   value,
   onChange,
   invalid,
 }: {
+  /** The product's size system, from sizesFor(product). */
+  sizes: readonly Size[];
   color: Colorway;
   value: Size | null;
   onChange: (s: Size) => void;
@@ -132,7 +135,7 @@ export function SizePicker({
         animate={invalid ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
         transition={{ duration: 0.4 }}
       >
-        {SIZES.map((s) => {
+        {sizes.map((s) => {
           const n = color.stock[s] ?? 0;
           return (
             <button

@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { useEffect } from "react";
 import { STORE } from "@/lib/config";
 import { formatKES } from "@/lib/format";
@@ -115,9 +116,9 @@ export function BagDrawer() {
                   ) : (
                     <p className="fine">Set NEXT_PUBLIC_WHATSAPP_NUMBER to turn on WhatsApp ordering.</p>
                   )}
-                  <button className="btn btn--ghost btn--block" disabled title="M-Pesa checkout is added in phase 2">
+                  <Link href="/checkout" className="btn btn--ghost btn--block" onClick={() => bag.setOpen(false)}>
                     Pay with M-Pesa
-                  </button>
+                  </Link>
                 </footer>
               )}
             </motion.aside>

@@ -3,7 +3,8 @@
     "id": "crimson-memory-ls-shirt",
     "name": "Crimson Memory LS Shirt",
     "type": "shirt",
-    "category": "Shirts",
+    "department": "tops",
+    "category": "shirts",
     "price": 3800,
     "colors": [
       { "id": "optic-white", "name": "Optic White", "hex": "#f4f4f1", "stock": { "S": 2, "M": 4, "L": 3, "XL": 1, "XXL": 0 } },
@@ -19,7 +20,8 @@
     "id": "its-us-never-them-tee",
     "name": "It's Us Never Them Tee",
     "type": "tee",
-    "category": "Tees",
+    "department": "tops",
+    "category": "tees",
     "price": 2400,
     "colors": [
       { "id": "black", "name": "Black", "hex": "#1b1b1c", "stock": { "S": 4, "M": 6, "L": 5, "XL": 2, "XXL": 1 } },
@@ -36,7 +38,8 @@
     "id": "distressed-logo-tank",
     "name": "Distressed Logo Tank",
     "type": "tank",
-    "category": "Tanks",
+    "department": "tops",
+    "category": "tees",
     "price": 2200,
     "colors": [
       { "id": "washed-black", "name": "Washed Black", "hex": "#2b2c2e", "stock": { "S": 2, "M": 3, "L": 3, "XL": 1, "XXL": 0 } },
@@ -52,7 +55,8 @@
     "id": "rift-valley-varsity",
     "name": "Rift Valley Varsity Jacket",
     "type": "jacket",
-    "category": "Outerwear",
+    "department": "tops",
+    "category": "jackets",
     "price": 6500,
     "colors": [
       { "id": "black-cream", "name": "Black / Cream", "hex": "#1d1d1f", "sleeve": "#ece5d3", "trim": "#ece5d3", "stock": { "S": 1, "M": 2, "L": 2, "XL": 1, "XXL": 0 } },
@@ -68,7 +72,8 @@
     "id": "heavyweight-hoodie",
     "name": "Heavyweight Hoodie",
     "type": "hoodie",
-    "category": "Outerwear",
+    "department": "tops",
+    "category": "hoodies",
     "price": 4200,
     "colors": [
       { "id": "heather-grey", "name": "Heather Grey", "hex": "#a9abaa", "stock": { "S": 3, "M": 5, "L": 4, "XL": 2, "XXL": 1 } },
@@ -85,7 +90,8 @@
     "id": "matchday-jersey",
     "name": "Matchday Jersey",
     "type": "jersey",
-    "category": "Tees",
+    "department": "tops",
+    "category": "tees",
     "price": 3200,
     "colors": [
       { "id": "harambee-yellow", "name": "Harambee Yellow", "hex": "#f3cf1d", "trim": "#1f7a3a", "stock": { "S": 2, "M": 4, "L": 4, "XL": 2, "XXL": 1 } },
@@ -101,7 +107,8 @@
     "id": "everyday-box-tee",
     "name": "Everyday Box Tee",
     "type": "tee",
-    "category": "Tees",
+    "department": "tops",
+    "category": "tees",
     "price": 1800,
     "colors": [
       { "id": "white", "name": "White", "hex": "#f6f6f3", "stock": { "S": 5, "M": 8, "L": 8, "XL": 4, "XXL": 2 } },
@@ -118,7 +125,8 @@
     "id": "sky-oxford-shirt",
     "name": "Sky Oxford Shirt",
     "type": "shirt",
-    "category": "Shirts",
+    "department": "tops",
+    "category": "shirts",
     "price": 3400,
     "colors": [
       { "id": "sky", "name": "Sky", "hex": "#9fb9d6", "stock": { "S": 2, "M": 3, "L": 3, "XL": 2, "XXL": 0 } },

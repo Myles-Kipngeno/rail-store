@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatKES, totalStock } from "@/lib/format";
-import type { Product, Side, Size } from "@/lib/types";
+import { sizesFor, type Product, type Side, type Size } from "@/lib/types";
 import { useBag } from "./BagProvider";
-import { Header } from "./Chrome";
+import { AddToBagButton, Header } from "./Chrome";
 import { Garment } from "./Garment";
 import { ColorLayers, EASE, Flipper, SizePicker } from "./Pieces";
 
@@ -26,10 +26,16 @@ export default function ProductDetail({ product }: { product: Product }) {
   const color = product.colors[ci];
   const soldOut = totalStock(color) === 0;
 
-  const add = (openBag: boolean) => {
-    if (!size || (color.stock[size] ?? 0) === 0) return setInvalid(true);
-    bag.add(
-      {
+  const figureRef = useRef<HTMLDivElement>(null);
+
+  /** Validates (the size shake runs if no size) and returns the bag line. */
+  const prepareAdd = () => {
+    if (!size || (color.stock[size] ?? 0) === 0) {
+      setInvalid(true);
+      return null;
+    }
+    return {
+      line: {
         productId: product.id,
         colorId: color.id,
         size,
@@ -39,8 +45,15 @@ export default function ProductDetail({ product }: { product: Product }) {
         price: product.price,
       },
       qty,
-    );
-    if (openBag) bag.setOpen(true);
+    };
+  };
+
+  // "Buy it now" skips the animation: add and open the bag straight away.
+  const buyNow = () => {
+    const item = prepareAdd();
+    if (!item) return;
+    bag.add(item.line, item.qty);
+    bag.setOpen(true);
   };
 
   return (
@@ -54,7 +67,7 @@ export default function ProductDetail({ product }: { product: Product }) {
           transition={{ duration: 0.5 }}
           aria-label="Photos"
         >
-          <div className="pdp-figure">
+          <div className="pdp-figure" ref={figureRef}>
             <Flipper side={side}>{(shown) => <ColorLayers product={product} colorIndex={ci} side={shown} />}</Flipper>
           </div>
           <div className="pdp-thumbs" role="group" aria-label="Side">
@@ -112,6 +125,7 @@ export default function ProductDetail({ product }: { product: Product }) {
           <div className="field">
             <span className="field-label">Size</span>
             <SizePicker
+              sizes={sizesFor(product)}
               color={color}
               value={size}
               onChange={(s) => {
@@ -139,10 +153,14 @@ export default function ProductDetail({ product }: { product: Product }) {
           </div>
 
           <div className="ctas ctas--stack">
-            <button className="btn btn--outline btn--block" onClick={() => add(false)} disabled={soldOut}>
-              Add to bag
-            </button>
-            <button className="btn btn--primary btn--block" onClick={() => add(true)} disabled={soldOut}>
+            <AddToBagButton
+              className="btn btn--outline btn--block"
+              block
+              prepare={prepareAdd}
+              source={() => figureRef.current}
+              disabled={soldOut}
+            />
+            <button className="btn btn--primary btn--block" onClick={buyNow} disabled={soldOut}>
               Buy it now
             </button>
           </div>
