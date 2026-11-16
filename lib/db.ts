@@ -70,3 +70,12 @@ export async function reorderProducts(ids: string[]) {
   const { error } = await supabaseAdmin().rpc("reorder_products", { ids });
   if (error) fail("reorderProducts", error);
 }
+
+/** Newsletter sign-up. Signing up twice is not an error (and doesn't reveal that the address is known). */
+export async function addSubscriber(email: string, source = "home") {
+  if (useSample) readOnly();
+  const { error } = await supabaseAdmin()
+    .from("subscribers")
+    .upsert({ email, source }, { onConflict: "email", ignoreDuplicates: true });
+  if (error) fail("addSubscriber", error);
+}

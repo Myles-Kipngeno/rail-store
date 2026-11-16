@@ -38,9 +38,11 @@ type GarmentProps = {
   color: Colorway;
   side?: Side;
   className?: string;
+  /** Rack only: a highlight masked to the photo's alpha that follows --sx/--sy (set by the rack on pointermove). */
+  sheen?: boolean;
 };
 
-export function Garment({ product, color, side = "front", className }: GarmentProps) {
+export function Garment({ product, color, side = "front", className, sheen }: GarmentProps) {
   const uid = "g" + useId().replace(/[^a-zA-Z0-9]/g, "");
   const photo = color.images?.[side];
 
@@ -49,6 +51,13 @@ export function Garment({ product, color, side = "front", className }: GarmentPr
       <div className={`garment garment--photo ${className ?? ""}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={photo} alt={`${product.name}, ${color.name}, ${side}`} draggable={false} loading="lazy" decoding="async" />
+        {sheen && (
+          <span
+            className="garment-sheen"
+            aria-hidden="true"
+            style={{ maskImage: `url("${photo}")`, WebkitMaskImage: `url("${photo}")` }}
+          />
+        )}
       </div>
     );
   }

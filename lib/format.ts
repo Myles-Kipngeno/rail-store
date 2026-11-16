@@ -1,4 +1,4 @@
-import { SIZES, type Colorway } from "./types";
+import type { Colorway } from "./types";
 
 export const formatKES = (n: number) => `KES ${Math.round(n).toLocaleString("en-KE")}`;
 
@@ -42,7 +42,8 @@ export const slugify = (s: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "piece";
 
-export const totalStock = (c: Colorway) => SIZES.reduce((sum, s) => sum + (c.stock[s] ?? 0), 0);
+/** Stock only ever holds the product's own sizes (clean() in app/admin/actions.ts), so summing every entry is safe. */
+export const totalStock = (c: Colorway) => Object.values(c.stock).reduce<number>((sum, n) => sum + (n ?? 0), 0);
 
 /** Small deterministic PRNG so drawn graphics look the same on server and client. */
 export function seeded(seed: string) {

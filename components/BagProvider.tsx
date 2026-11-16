@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { Size } from "@/lib/types";
 
 export interface BagLine {
@@ -26,6 +26,10 @@ interface BagCtx {
   remove: (key: string) => void;
   clear: () => void;
   toast: string | null;
+  /** Bumps on every add(): the header bounces the count and rings the Bag button. */
+  pulse: number;
+  /** The header's Bag button: where add-to-bag flights land. */
+  buttonRef: RefObject<HTMLButtonElement | null>;
 }
 
 const Ctx = createContext<BagCtx | null>(null);
@@ -36,6 +40,8 @@ export function BagProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<BagLine[]>([]);
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [pulse, setPulse] = useState(0);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     try {
@@ -64,6 +70,7 @@ export function BagProvider({ children }: { children: ReactNode }) {
       return [...ls, { ...line, qty }];
     });
     setToast(`${line.name} · ${line.colorName} · ${line.size}`);
+    setPulse((n) => n + 1);
   }, []);
 
   const setQty = useCallback((key: string, qty: number) => {
@@ -85,8 +92,10 @@ export function BagProvider({ children }: { children: ReactNode }) {
       remove,
       clear,
       toast,
+      pulse,
+      buttonRef,
     }),
-    [lines, open, add, setQty, remove, clear, toast],
+    [lines, open, add, setQty, remove, clear, toast, pulse],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
