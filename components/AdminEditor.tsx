@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useState, useTransition } from "react";
-import { createImageUpload, removeProduct, saveOrder, saveProduct } from "@/app/admin/actions";
+import { createImageUpload, finalizeImageUpload, removeProduct, saveOrder, saveProduct } from "@/app/admin/actions";
 import { formatKES, shade, totalStock } from "@/lib/format";
 import {
   CATEGORIES,
@@ -53,6 +53,8 @@ const blankProduct = (): Product => ({
 export default function AdminEditor({ products }: { products: Product[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  /** "<colour index>-<side>" of the photo slot whose background the server is removing. */
+  const [bgSlot, setBgSlot] = useState<string | null>(null);
   const [draft, setDraft] = useState<Product>(() => structuredClone(products[0] ?? blankProduct()));
   const [isNew, setIsNew] = useState(products.length === 0);
   const [previewColor, setPreviewColor] = useState(0);
@@ -147,7 +149,11 @@ export default function AdminEditor({ products }: { products: Product[] }) {
         headers: { apikey: res.apiKey },
       }).catch(() => undefined);
       if (!put?.ok) return setMsg({ kind: "error", text: "Upload failed. Check your connection and try again." });
-      setColor(ci, { images: { ...draft.colors[ci].images, [side]: res.publicUrl } });
+      if (res.removesBackground && (await looksOpaque(file))) setBgSlot(`${ci}-${side}`);
+      // The server removes an opaque background (remove.bg) and frames it to sit on the rod like the drawn garments.
+      const done = await finalizeImageUpload(res.path).finally(() => setBgSlot(null));
+      if (!done.ok) return setMsg({ kind: "error", text: done.error });
+      setColor(ci, { images: { ...draft.colors[ci].images, [side]: done.publicUrl } });
       setPreviewColor(ci);
       setPreviewSide(side);
     });
@@ -345,7 +351,11 @@ export default function AdminEditor({ products }: { products: Product[] }) {
                           </button>
                         </span>
                       ) : (
-                        <PhotoCapture disabled={pending} onUse={(file) => upload(i, side, file)} />
+                        bgSlot === `${i}-${side}` ? (
+                          <span className="muted mono">Removing background…</span>
+                        ) : (
+                          <PhotoCapture disabled={pending} onUse={(file) => upload(i, side, file)} />
+                        )
                       )}
                     </div>
                   ))}
@@ -511,4 +521,26 @@ export default function AdminEditor({ products }: { products: Product[] }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Display hint only: does this photo have no transparency, so the server will send it to remove.bg?
+ * The server decides for itself; this just picks the label shown while it works.
+ */
+async function looksOpaque(file: File): Promise<boolean> {
+  if (file.type === "image/jpeg") return true;
+  try {
+    const bmp = await createImageBitmap(file);
+    const c = document.createElement("canvas");
+    c.width = c.height = 96;
+    const ctx = c.getContext("2d");
+    if (!ctx) return false;
+    ctx.drawImage(bmp, 0, 0, 96, 96);
+    bmp.close();
+    const px = ctx.getImageData(0, 0, 96, 96).data;
+    for (let k = 3; k < px.length; k += 4) if (px[k] < 255) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
