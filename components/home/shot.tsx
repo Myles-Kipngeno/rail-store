@@ -5,7 +5,7 @@
 import { getImgProps } from "next/dist/shared/lib/get-img-props";
 import type { ImageConfigComplete } from "next/dist/shared/lib/image-config";
 import defaultLoader from "next/dist/shared/lib/image-loader";
-import type { Product } from "@/lib/types";
+import { hasDrawnFallback, type Colorway, type Product, type Side } from "@/lib/types";
 import { Garment } from "../Garment";
 
 /** First colour with a front photo. Non-tops can't be published without one (clean() in admin actions). */
@@ -33,10 +33,31 @@ export function imgProps(src: string, alt: string, sizes: string): ImgProps {
   return props;
 }
 
-/** The product's photo (optimized, lazy), or the drawn garment for tops without one. */
-export function Shot({ product, sizes, className = "" }: { product: Product; sizes: string; className?: string }) {
-  const src = frontPhoto(product);
-  if (!src) return <Garment product={product} color={product.colors[0]} className={className} />;
+/**
+ * The product's photo (optimized, lazy), or the drawn garment when it has none. `color` defaults to the
+ * first colour with a front photo; `side` picks front or back. Returns null when that side can't be shown
+ * (a photo-only piece without a back photo).
+ */
+export function Shot({
+  product,
+  sizes,
+  className = "",
+  side = "front",
+  color,
+}: {
+  product: Product;
+  sizes: string;
+  className?: string;
+  side?: Side;
+  color?: Colorway;
+}) {
+  const c = color ?? product.colors.find((x) => x.images?.front) ?? product.colors[0];
+  const src = c.images?.[side];
+  if (!src) {
+    // No back photo: draw the back only if the front is drawn too (never a photo front + drawn back).
+    if (side === "back" && (c.images?.front || !hasDrawnFallback(product))) return null;
+    return <Garment product={product} color={c} side={side} className={className} />;
+  }
   // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-  return <img {...imgProps(src, product.name, sizes)} className={`shot-img ${className}`} />;
+  return <img {...imgProps(src, `${product.name}, ${c.name}${side === "back" ? ", back" : ""}`, sizes)} className={`shot-img ${className}`} />;
 }

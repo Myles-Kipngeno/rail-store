@@ -5,6 +5,7 @@ import "@fontsource/jetbrains-mono/500.css";
 import "./globals.css";
 import { BagDrawer } from "@/components/BagDrawer";
 import { BagProvider } from "@/components/BagProvider";
+import { GarmentDefs } from "@/components/GarmentDefs";
 import { STORE } from "@/lib/config";
 
 export const metadata: Metadata = {
@@ -18,6 +19,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        {/* Shared gradients, filters and outlines for every drawn garment on the page. */}
+        <GarmentDefs />
         <BagProvider>
           {children}
           <BagDrawer />

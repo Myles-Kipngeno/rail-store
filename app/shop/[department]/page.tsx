@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Chrome";
-import { Footer } from "@/components/home/Footer";
+import { SiteFooter } from "@/components/home/SiteFooter";
 import { ProductCard } from "@/components/home/Row";
 import { ShoeItem } from "@/components/home/ShoeShelf";
 import { departmentOf } from "@/components/home/shot";
@@ -55,7 +55,7 @@ export default async function DepartmentPage({ params }: Params) {
             Back to the rack
           </Link>
         </main>
-        <Footer />
+        <SiteFooter />
       </>
     );
   }
@@ -66,7 +66,7 @@ export default async function DepartmentPage({ params }: Params) {
       <>
         <h1 className="sr-only">{label}</h1>
         <Store products={products} categories={chips} rackStyle={rack} />
-        <Footer />
+        <SiteFooter />
       </>
     );
   }
@@ -95,7 +95,7 @@ export default async function DepartmentPage({ params }: Params) {
           listClassName={department === "shoes" ? "shelf-row shelf-row--wrap" : "shop-grid"}
         />
       </main>
-      <Footer />
+      <SiteFooter />
     </>
   );
 }

@@ -36,7 +36,7 @@ export function ColorLayers({ product, colorIndex, side }: { product: Product; c
               if (i > 0) setLayers((ls) => ls.slice(ls.findIndex((x) => x.key === l.key)));
             }}
           >
-            <Garment product={product} color={color} side={side} />
+            <Garment product={product} color={color} side={side} detail="high" />
           </motion.div>
         );
       })}

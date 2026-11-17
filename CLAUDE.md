@@ -8,6 +8,7 @@ Clothing store where every product hangs on one clothes rail. Hover pulls a piec
 - `npm run typecheck` — run after every change; must pass
 - Admin: `/admin` (HTTP Basic auth; needs `ADMIN_PASSWORD` in `.env.local`, see `.env.example`)
 - `npm run db:seed` — load `data/products.json` (+ local `uploads/`) into Supabase
+- `npm run demo:photos -- --fetch | --review | --apply choices.json [--dry-run] [--force]` — Pexels stock photos for the demo products (scripts/demo-photos.ts; downloads in git-ignored `tmp/`)
 - Schema: `supabase/migrations/*.sql` (`supabase db push`, or paste into the SQL editor)
 
 ## Stack (pinned, do not upgrade without asking)
@@ -26,13 +27,15 @@ components/home/             sections below the rack, in page order (index.ts); 
   Showcase.tsx               pinned scroll showcase, one per STORE.showcase department (see "Home sections").
                              Loaded via ShowcaseLazy (next/dynamic) to keep useScroll off the first load.
   ShoeShelf.tsx              ShoeItem: a shoe on the floating shelf (/shop/shoes), CSS hover lift
-  Row.tsx (+ RowArrows)      New arrivals / Formal / Accessories scroll-snap card rows ("View all" → /shop/<dept>)
-  OffTheRack.tsx             tilted customer photos from public/off-the-rack/*.jpg (redeploy after adding)
-  Newsletter.tsx, Footer.tsx, Reveal.tsx (fade + 16px rise on first view)
+  Row.tsx                    product rows (server: cards, ProductCard also used by the accessories grid)
+  RowShell.tsx               rows' client half: reveal, mouse drag, ← → (RowArrows)
+  Lookbook.tsx               "Off the rack" curved wall (rAF loop, drag/swipe, drift). Loaded via LookbookLazy
+  SiteFooter.tsx (+ FooterNewsletter)  footer with the newsletter form; revealed from under .page-main on home
   shot.tsx                   product photo via next/image's getImgProps (plain <img>, lazy, srcset; see file:
                              importing "next/image" would ship its client component) or the drawn garment
 app/p/[id]/page.tsx          full product page (SSG via generateStaticParams)
-app/admin/page.tsx + actions.ts   admin UI + server actions (save, delete, reorder, upload)
+app/admin/page.tsx + actions.ts   admin UI + server actions (save, delete, reorder, upload; lookbook upload/
+                             save/remove/reorder)
 app/uploads/[file]/route.ts  redirects legacy /uploads/<file> links to the Storage bucket
 middleware.ts                Basic auth for /admin
 components/Store.tsx         rack + item view + all transitions (the core). Reused by home and department pages:
@@ -42,18 +45,26 @@ components/Chrome.tsx        Header (department nav; ≤980px a Menu button), Ti
 components/MenuSheet.tsx     phone menu: full-screen sheet, staggered links (loaded on demand via next/dynamic)
 components/shop/CategoryFilter.tsx  chips + ?category= for the shelf and grid department pages
 components/Pieces.tsx        ColorLayers (wipe), Flipper, HangTags, SizePicker
-components/Garment.tsx       SVG garment renderer, or the uploaded photo when present. Delegates bottoms to
-                             Trousers.tsx (same 200×260 box, clip hanger) and shoes to Shoe.tsx (240×140, toe
-                             right; "back" = heel view). Both are next/dynamic so they stay off the home first load.
+components/Garment.tsx       garment renderer: the uploaded photo when present, else the drawing. Delegates tops to
+                             Top.tsx, bottoms to Trousers.tsx (same 200×260 box, clip hanger) and shoes to Shoe.tsx
+                             (240×140, toe right; "back" = heel view). All three are next/dynamic (still SSR) so the
+                             drawing code stays off the first load. Shared defs: GarmentDefs.tsx + garment/shapes*.ts
 components/BagProvider.tsx   cart context, persisted to localStorage
 components/BagDrawer.tsx     cart drawer + WhatsApp order + toast
 components/ProductDetail.tsx /p/[id] client view
-components/AdminEditor.tsx   admin list, form, live preview
-lib/db.ts                    ONLY place that reads/writes products (Supabase; sample JSON fallback when unconfigured)
+components/AdminEditor.tsx   admin list, form, live preview; Pieces / Lookbook tabs
+components/LookbookAdmin.tsx admin Lookbook tab (upload, caption, product link, publish, ↑/↓, remove)
+lib/db.ts                    ONLY place that reads/writes products, subscribers, orders and the lookbook
+                             (Supabase; sample JSON fallback when unconfigured)
 lib/supabase.ts              server-only Supabase clients (anon = RLS/published, service role = admin)
 supabase/migrations/         schema, RLS, upsert_product/reorder_products functions, product-images bucket,
-                             departments/sizes, subscribers (newsletter; service role only)
+                             departments/sizes, subscribers (newsletter; service role only), orders,
+                             lookbook (anon reads published rows; reorder_lookbook)
 scripts/seed.mjs             seeds Supabase from data/products.json
+scripts/demo-photos.ts       Pexels photos for the demo products (data/products.json ids only): fetch candidates +
+                             review page, then apply the picks through the admin photo pipeline (tsx, react-server)
+lib/image.ts, lib/storage.ts photo pipeline (prepareGarmentPhoto: remove.bg → trim → 1000x1300 WebP) and bucket upload,
+                             shared by the admin actions and the script
 lib/types.ts                 Product, Colorway, Print, Size; lib/format.ts helpers; lib/config.ts store name/ticker
 data/products.json           seed data (8 sample pieces); also the read-only fallback before Supabase is set up
 ```
@@ -74,10 +85,14 @@ Stock is per colour per size, and the size system comes from department/category
 - shoes: EU `38`–`46`
 - accessories: `ONE`
 
-A colourway may have `images.front/back` (real photos). Tops, bottoms and shoes have a drawn fallback: without a photo the SVG is drawn from `type` + `print`. `DRAWN_TYPES[department]` lists the shapes each may use (tops: tee…jersey; bottoms: pants, cargo, joggers, shorts; shoes: sneaker, boot, slide); `drawnType()` falls back to the department's first shape. `trim` is the rib/collar on tops, the waistband/cuffs on trousers (plus a side stripe when it differs from `hex`), and the sole on shoes. `printKindsFor(type)`: trousers take text/logo/letter (small, left thigh), shoes none. Formal and accessories need a front photo on every colour before they can be published (`hasDrawnFallback()`, enforced in `clean()`); drafts can be saved without one. New `garment_type` values need a migration (Postgres enum). Rack order = `products.position` (admin ↑/↓ changes it). Reads come from the `product_documents` view, already shaped as `Product`. `published: false` = draft, hidden from the store.
+A colourway may have `images.front/back` (real photos) and `images.credit` (`{ source: "pexels", photographer, url }` for the front photo; column `colorways.image_credit`). The server keeps a credit only while that photo stays the front, and never takes one from the client. While any published product uses a Pexels photo, the footer links "Demo photos via Pexels". Tops, bottoms and shoes have a drawn fallback: without a photo the SVG is drawn from `type` + `print`. `DRAWN_TYPES[department]` lists the shapes each may use (tops: tee…jersey; bottoms: pants, cargo, joggers, shorts; shoes: sneaker, runner, boot, slide); `drawnType()` falls back to the department's first shape. `trim` is the rib/collar on tops; on trousers it's the rib waist and cuffs on joggers, a side stripe on joggers and shorts when it differs from `hex`, and otherwise the thread colour (gold by default on denim, category `jeans`); on shoes it's the sole. `printKindsFor(type)`: trousers take text/logo/letter (small, left thigh), shoes none. Formal and accessories need a front photo on every colour before they can be published (`hasDrawnFallback()`, enforced in `clean()`); drafts can be saved without one. New `garment_type` values need a migration (Postgres enum). Rack order = `products.position` (admin ↑/↓ changes it). Reads come from the `product_documents` view, already shaped as `Product`. `published: false` = draft, hidden from the store.
 
 ## Home sections (app/page.tsx, components/home)
-Below the rack: one pinned showcase per department in `STORE.showcase` (lib/config.ts, now bottoms then shoes) that has 2+ published pieces with a photo or a drawing, in rack order. Then rows, Off the rack, newsletter and footer.
+Order below the rack:
+1. One pinned showcase per department in `STORE.showcase` (lib/config.ts, now bottoms then shoes) that has 2+ published pieces with a photo or a drawing, in rack order.
+2. Rows: "New arrivals" (the 8 newest by `createdAt`), then one row per category with 3+ pieces, in rack order.
+3. The "Off the rack" lookbook.
+4. The footer (outside `.page-main`).
 
 Showcase (Showcase.tsx), the rules:
 - **Layout**: `.showcase-pin` is `100svh + n × --showcase-seg` tall (80vh, 60vh on phones); `.showcase-stage` is `sticky; top: 0; height: 100svh`, so it pins for n segments, then releases and scrolls away.
@@ -93,11 +108,59 @@ Showcase (Showcase.tsx), the rules:
   `position()` / `look()` in the file hold the maths. Function transforms only: range transforms of `useScroll` get handed to a native ScrollTimeline, which throws for ranges outside 0..1 and crashes the page.
 - **≤640px**: no ghost (the next piece fades in in place), text under the piece.
 - **prefers-reduced-motion**: the pinned stage is hidden and `.showcase-list` (a plain vertical list) shows instead.
-- **SVG ids**: drawn pieces use `idPrefix` "s" in the stage and "l" in the list, so no `url(#…)` points into a hidden copy.
+- **Ghost**: the next piece also gets `grayscale(.7)`, which eases to 0 as it reaches the centre.
 
-The item view hides `.home` and the footer while it's open (`html[data-item-open]`, set in Store.tsx). This locks page scroll to the rack without `overflow: hidden`, because on short screens the info panel needs to scroll.
+Rows (Row.tsx + RowShell.tsx):
+- **Header**: eyebrow + title on the left. On the right, "View all" (category → `/shop/<dept>?category=<cat>`, which selects that chip; New arrivals → `/shop`) and ← → buttons, which scroll by one card.
+- **Track**: scroll-snap x mandatory, no scrollbar. Card width comes from `--row-n` cards visible (4.3; 2.6 at ≤980px; 1.6 at ≤640px). Touch swipes natively. Mouse drags with pointer events: snapping is off during the drag, it settles on the nearest card, and the click that ends a drag is swallowed.
+- **Card** (ProductCard): `--tile` background, 4:5, the first colour with stock (photo preferred). Hover or focus darkens the tile 4%, scales the piece to 1.03 and crossfades front → back in 0.35s. There is a back only for a front + back photo pair, or a drawing; there's never a photo front with a drawn back. "Sold out" chip when no colour has stock.
+- **Reveal**: at 20% in view, the header then the cards fade up 16px, `--i` × 60ms, once.
+- **Reduced motion**: no reveal, no scale, instant swap.
+
+Lookbook (Lookbook.tsx), data from `lookbook` via `getLookbook()`:
+- **Placeholders**: with no published rows (or before the migration is applied), 7 drawn pieces on a tinted background with "@rail.ke · <name>" captions.
+- **Cards**: portrait, 290px wide, heights alternating 420/360 (210px wide and 300/260 on phones), inside `perspective: 1400px`.
+- **One rAF loop**, transforms only:
+  - The track `translate3d`s.
+  - Each card gets `rotateY = clamp(offset × -36deg, ±22deg)` and `translateZ = -|offset| × 60px`, where `offset = (card centre - viewport centre) / viewport width`.
+  - Track velocity adds `skewX` (max 4deg) that settles back.
+- **Motion**:
+  - It drifts left at 40px/s, pausing on hover, focus and drag.
+  - It loops seamlessly with N copies of the list; duplicates are `aria-hidden` with their links out of the tab order.
+  - ← → nudge by one card (600ms ease-out). Drag or swipe (pointer events, `touch-action: pan-y`) flings, and a drag never clicks.
+  - The loop stops off-screen (IntersectionObserver) and in a hidden tab.
+- **Links**: a linked product shows a "Shop the look" pill → `/p/<id>`.
+- **Reduced motion**: a plain scroll-snap row.
+- **Admin**: Lookbook tab. Uploads reuse `createImageUpload`, then `uploadLookbookImage`: no cutout or framing; it auto-orients, scales to max 1400px tall and saves WebP q80 without metadata (`lookbookPhoto()` in lib/image.ts). New photos are drafts at the end.
+
+Footer (SiteFooter.tsx):
+- **Columns**: Visit (city + `STORE.hours`), Newsletter, Shop, Help. A giant lime RAIL wordmark sits across the bottom.
+- **Reveal**: on the home page `.page-main` (z-index 1, `--wall` background) scrolls off the footer (`.page-main + .site-foot`: sticky, bottom 0, z-index 0). Elsewhere, and with reduced motion, it's a plain footer.
+- **Newsletter**: the `subscribe` server action only. It validates, lowercases, ignores duplicates and has a honeypot. Success shows the shared toast (`useBag().notify`).
+
+The item view hides `.home` and `.site-foot` while it's open (`html[data-item-open]`, set in Store.tsx). This locks page scroll to the rack without `overflow: hidden`, because on short screens the info panel needs to scroll.
+
+## Drawn garments (Garment.tsx → Top.tsx / Trousers.tsx / Shoe.tsx, garment/shapes*.ts, GarmentDefs.tsx)
+- **One sprite per page**: `<GarmentDefs/>` in app/layout.tsx holds every gradient (key light, roll-off, metal, sole), filter (soft blurs, fabric noise), pattern (twill, rib, mesh, perforation, emboss) and outline clipPath, with ids `gd-*` (`GD` in shapes.ts). Garments reference these and never define their own `<defs>`, so ids can't clash or mismatch on hydration. Blur filters use a fixed user-space region: a bounding-box region on a thin stroke clips the blur away.
+- **`detail`**:
+  - `"low"` (default) for the rack, rows, thumbnails, admin list and lookbook: shapes, gradients and folds, never the noise filter, to keep rack hover smooth.
+  - `"high"` for the item view and product page (ColorLayers) and the showcase: adds fabric noise, twill or mesh, dashed stitching and the fine folds.
+- **Tones** (`tone()`): highlights hex +12%, mid folds −8%, shadows −18%, deep −32%.
+- **Trousers**: clip hanger (metal bar and spring clips; the waist sags between them).
+  - Whiskers, knee bend and a stacked hem break.
+  - Fly with J-stitch, slant pockets, and a coin pocket on denim.
+  - Back: yoke, stitched back pockets and a waistband label.
+  - Cargo: bellows pockets with snapped flaps. Joggers: rib waist, drawcord with aglets, rib cuffs. Shorts: turned-up hem with side splits.
+- **Shoes** (profile, toe right, toe spring, arch lift, contact shadow): sneaker, runner (mesh, sculpted midsole, reflective heel), Chelsea boot and slide. "Heel" is the pair seen from behind.
+- **Tops**: seams, sleeve and hem folds, rib collar and cuffs, shirt placket and buttons, hoodie hood depth and aglets, jacket zip. Prints sit under multiply fold shading.
+- **No brand marks**: no stripe trios, swooshes or logos on the drawings.
 
 ## The rack UI spec (source of truth, keep it exactly)
+0. **Hero = one screen**: `.store` is exactly `100svh`, a flex column of header / chips / stage / ticker (in flow, not fixed). The stage takes the rest. The rail + caption + button group is centred in it, nudged up `--hero-nudge` (3svh). Nothing scrolls at rest, and home sections start at the fold.
+   - **Sizing is from the viewport, no breakpoints**: `--gw: clamp(118px, min(15vw, 31svh), 250px)`. The rack still shrinks it to fit all pieces across (`--rack-gw`), with `--slot`/`--open` = 0.62 / 1.15 × that.
+   - The caption has a fixed height (`--caption-h`), so the button never shifts on hover.
+   - Short screens (<720px tall) tighten the header and chips tokens first.
+   - The item view fits the stage: centre card height `min(46svh, gw × 1.6)` (`--cw`). Below 800px tall it drops the keyboard hint and trims spacing. Below 620px tall only the item view scrolls.
 1. **Rack**: one rod; pieces edge-on at `rotateY(64deg)` in `--slot` wide slots, overlapping. Pieces after the hovered one turn the other way (`-64deg`).
    Drawn trousers hang from a clip hanger (straight bar, two clips at the waistband corners) with the hook at the same y≈10, so they share the rod line with the tops.
 2. **Hover / focus / first tap**: slot widens to `--open`, garment turns to `0deg` + `translateZ(18px)`, 0.62s `cubic-bezier(.2,.8,.2,1)`. Caption shows name, price, colour dots.

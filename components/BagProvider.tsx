@@ -25,7 +25,10 @@ interface BagCtx {
   setQty: (key: string, qty: number) => void;
   remove: (key: string) => void;
   clear: () => void;
-  toast: string | null;
+  /** The toast: `bag` = "Added: …" with a View bag link; otherwise a plain message (notify()). */
+  toast: { text: string; bag: boolean } | null;
+  /** Shows a plain toast message (e.g. the footer newsletter). */
+  notify: (text: string) => void;
   /** Bumps on every add(): the header bounces the count and rings the Bag button. */
   pulse: number;
   /** The header's Bag button: where add-to-bag flights land. */
@@ -39,7 +42,7 @@ export const lineKey = (l: Pick<BagLine, "productId" | "colorId" | "size">) => `
 export function BagProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<BagLine[]>([]);
   const [open, setOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<BagCtx["toast"]>(null);
   const [pulse, setPulse] = useState(0);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -69,7 +72,7 @@ export function BagProvider({ children }: { children: ReactNode }) {
       if (i >= 0) return ls.map((l, j) => (j === i ? { ...l, qty: l.qty + qty } : l));
       return [...ls, { ...line, qty }];
     });
-    setToast(`${line.name} · ${line.colorName} · ${line.size}`);
+    setToast({ text: `${line.name} · ${line.colorName} · ${line.size}`, bag: true });
     setPulse((n) => n + 1);
   }, []);
 
@@ -79,6 +82,7 @@ export function BagProvider({ children }: { children: ReactNode }) {
 
   const remove = useCallback((key: string) => setLines((ls) => ls.filter((l) => lineKey(l) !== key)), []);
   const clear = useCallback(() => setLines([]), []);
+  const notify = useCallback((text: string) => setToast({ text, bag: false }), []);
 
   const value = useMemo<BagCtx>(
     () => ({
@@ -92,10 +96,11 @@ export function BagProvider({ children }: { children: ReactNode }) {
       remove,
       clear,
       toast,
+      notify,
       pulse,
       buttonRef,
     }),
-    [lines, open, add, setQty, remove, clear, toast, pulse],
+    [lines, open, add, setQty, remove, clear, toast, notify, pulse],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

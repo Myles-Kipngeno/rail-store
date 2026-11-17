@@ -96,7 +96,7 @@ export const sizesFor = (p: Pick<Product, "department" | "category">): readonly 
 export const GARMENT_TYPES = [
   "tee", "long", "shirt", "hoodie", "tank", "jacket", "jersey",
   "pants", "cargo", "joggers", "shorts",
-  "sneaker", "boot", "slide",
+  "sneaker", "runner", "boot", "slide",
 ] as const;
 export type GarmentType = (typeof GARMENT_TYPES)[number];
 
@@ -113,6 +113,7 @@ export const GARMENT_LABELS: Record<GarmentType, string> = {
   joggers: "Joggers",
   shorts: "Shorts",
   sneaker: "Sneakers",
+  runner: "Runners",
   boot: "Boots",
   slide: "Slides",
 };
@@ -125,7 +126,7 @@ export const GARMENT_LABELS: Record<GarmentType, string> = {
 export const DRAWN_TYPES: Partial<Record<Department, readonly GarmentType[]>> = {
   tops: ["tee", "long", "shirt", "hoodie", "tank", "jacket", "jersey"],
   bottoms: ["pants", "cargo", "joggers", "shorts"],
-  shoes: ["sneaker", "boot", "slide"],
+  shoes: ["sneaker", "runner", "boot", "slide"],
 };
 
 export const hasDrawnFallback = (p: Pick<Product, "department">) => Boolean(DRAWN_TYPES[p.department]);
@@ -181,8 +182,12 @@ export interface Colorway {
   trim?: string;
   /** Sleeve colour (varsity-style jackets). */
   sleeve?: string;
-  /** Real product photos. When set they replace the illustration for that side. Transparent PNG/WebP works best. */
-  images?: { front?: string; back?: string };
+  /**
+   * Real product photos. When set they replace the illustration for that side. Transparent PNG/WebP works best.
+   * `credit`: where the front photo came from (stock photos, e.g. the Pexels demo photos). Dropped by the
+   * server when the front photo is replaced.
+   */
+  images?: { front?: string; back?: string; credit?: ImageCredit };
   stock: Partial<Record<Size, number>>;
 }
 
@@ -205,3 +210,25 @@ export interface Product {
 }
 
 export type Side = "front" | "back";
+
+/** A photo in the home page "Off the rack" lookbook (table public.lookbook). */
+export interface LookbookItem {
+  id: string;
+  src: string;
+  product_id: string | null;
+  caption: string;
+  position: number;
+  published: boolean;
+  created_at: string;
+}
+
+/** Attribution for a stock photo (Colorway.images.credit). */
+export interface ImageCredit {
+  source: "pexels";
+  photographer: string;
+  /** The photo's page on the source site. */
+  url: string;
+}
+
+/** True when the product shows a Pexels photo on any colour (the footer then credits Pexels). */
+export const usesPexels = (p: Pick<Product, "colors">) => p.colors.some((c) => c.images?.front && c.images.credit?.source === "pexels");

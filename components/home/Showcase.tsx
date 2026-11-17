@@ -40,10 +40,10 @@ const HOLD = 0.65;
 const href = (it: ShowItem) => `/p/${it.id}?c=${encodeURIComponent(it.colorId)}`;
 const pad = (n: number) => String(n).padStart(2, "0");
 
-function Shot({ item, prefix, alt }: { item: ShowItem; prefix: string; alt?: string }) {
+function Shot({ item, alt }: { item: ShowItem; alt?: string }) {
   if (item.drawn) {
     const color = item.drawn.colors.find((c) => c.id === item.colorId) ?? item.drawn.colors[0];
-    return <Garment product={item.drawn} color={color} idPrefix={prefix} className="showcase-drawn" />;
+    return <Garment product={item.drawn} color={color} detail="high" className="showcase-drawn" />;
   }
   // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
   return <img {...item.img} {...(alt !== undefined ? { alt } : {})} className="shot-img" />;
@@ -129,7 +129,7 @@ export default function Showcase({ id, title, unit, items }: Props) {
           <li key={item.id}>
             <Link href={href(item)} className="showcase-card">
               <span className="showcase-card-shot">
-                <Shot item={item} prefix="l" />
+                <Shot item={item} />
               </span>
               <span className="row-name">{item.name}</span>
               <span className="row-price mono">{formatKES(item.price)}</span>
@@ -187,10 +187,15 @@ function Piece({ item, i, pos, narrow }: { item: ShowItem; i: number; pos: Motio
   const x = useTransform(pos, (p) => `${look(i - p, narrow).x}vw`);
   const y = useTransform(pos, (p) => look(i - p, narrow).y);
   const scale = useTransform(pos, (p) => look(i - p, narrow).s);
+  // The ghost is desaturated (grayscale .7, easing to 0 as it reaches the centre) so accents don't pull focus.
+  const filter = useTransform(pos, (p) => {
+    const d = i - p;
+    return narrow || d <= 0 ? "none" : `grayscale(${(0.7 * Math.min(1, d)).toFixed(3)})`;
+  });
   return (
     // Decorative: the copy beside it names the current item and links to it.
-    <motion.div className="showcase-item" style={{ opacity, x, y, scale }} aria-hidden="true">
-      <Shot item={item} prefix="s" alt="" />
+    <motion.div className="showcase-item" style={{ opacity, x, y, scale, filter }} aria-hidden="true">
+      <Shot item={item} alt="" />
     </motion.div>
   );
 }

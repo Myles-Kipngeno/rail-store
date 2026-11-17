@@ -135,10 +135,16 @@ export function BagDrawer() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 30, opacity: 0 }}
           >
-            <span>Added: {bag.toast}</span>
-            <button className="link-btn" onClick={() => bag.setOpen(true)}>
-              View bag
-            </button>
+            {bag.toast.bag ? (
+              <>
+                <span>Added: {bag.toast.text}</span>
+                <button className="link-btn" onClick={() => bag.setOpen(true)}>
+                  View bag
+                </button>
+              </>
+            ) : (
+              <span>{bag.toast.text}</span>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

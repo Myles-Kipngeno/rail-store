@@ -511,7 +511,6 @@ function ItemView({
   const n = visible.length;
   const ci = colorIndex(cur);
   const color = cur.colors[ci];
-  const cardW = vw < 640 ? Math.min(230, vw * 0.56) : 300;
   const off = vw < 640 ? vw * 0.5 : Math.min(360, vw * 0.3);
 
   // Opening flight: from the hanger on the rack to the centre.
@@ -572,7 +571,8 @@ function ItemView({
         <span aria-hidden="true">×</span>
       </button>
 
-      <div className="carousel" style={{ "--cw": `${cardW}px` } as CSSProperties} onPointerDown={onDown} onPointerUp={onUp}>
+      {/* Card width: --cw in globals.css (from the viewport height and --gw). */}
+      <div className="carousel" onPointerDown={onDown} onPointerUp={onUp}>
         {visible.map((p, i) => {
           let rel = (i - idx + n) % n;
           if (rel > n / 2) rel -= n; // -2 … +2

@@ -227,7 +227,7 @@
   {
     "id": "demo-runner",
     "name": "Runner",
-    "type": "sneaker",
+    "type": "runner",
     "department": "shoes",
     "category": "sneakers",
     "price": 7800,

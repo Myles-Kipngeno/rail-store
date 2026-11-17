@@ -13,7 +13,7 @@
 import "server-only";
 import sample from "@/data/products.json";
 import { supabaseAdmin, supabaseConfigured, supabasePublic } from "./supabase";
-import type { Product } from "./types";
+import type { LookbookItem, Product } from "./types";
 
 type Opts = { includeDrafts?: boolean };
 
@@ -78,6 +78,58 @@ export async function addSubscriber(email: string, source = "home") {
     .from("subscribers")
     .upsert({ email, source }, { onConflict: "email", ignoreDuplicates: true });
   if (error) fail("addSubscriber", error);
+}
+
+// ---------------------------------------------------------------- lookbook ("Off the rack" on the home page)
+export type LookbookInput = Pick<LookbookItem, "src" | "product_id" | "caption" | "published">;
+
+/** Published photos in order (public), or every row for the admin. The sample rack has none. */
+export async function getLookbook(opts: Opts = {}): Promise<LookbookItem[]> {
+  if (useSample) return [];
+  const db = opts.includeDrafts ? supabaseAdmin() : supabasePublic();
+  let q = db.from("lookbook").select("*");
+  if (!opts.includeDrafts) q = q.eq("published", true);
+  const { data, error } = await q.order("position").order("created_at");
+  // Table not created yet (migration 20261121000000_lookbook.sql not applied): the home page shows the
+  // drawn placeholders instead of failing to build.
+  if (error?.code === "PGRST205" || error?.code === "42P01") {
+    console.warn("[db] lookbook table missing: apply supabase/migrations/20261121000000_lookbook.sql");
+    return [];
+  }
+  if (error) fail("getLookbook", error);
+  return data as LookbookItem[];
+}
+
+/** New photos go to the end of the strip. Returns the row id. */
+export async function addLookbookItem(item: LookbookInput): Promise<string> {
+  if (useSample) readOnly();
+  const db = supabaseAdmin();
+  const last = await db.from("lookbook").select("position").order("position", { ascending: false }).limit(1).maybeSingle();
+  if (last.error) fail("addLookbookItem", last.error);
+  const position = ((last.data as { position: number } | null)?.position ?? -1) + 1;
+  const { data, error } = await db.from("lookbook").insert({ ...item, position }).select("id").single();
+  if (error) fail("addLookbookItem", error);
+  return (data as { id: string }).id;
+}
+
+export async function updateLookbookItem(id: string, patch: Partial<Omit<LookbookInput, "src">>) {
+  if (useSample) readOnly();
+  const { error } = await supabaseAdmin().from("lookbook").update(patch).eq("id", id);
+  if (error) fail("updateLookbookItem", error);
+}
+
+/** Deletes the row and returns its src (so the caller can remove the file). */
+export async function deleteLookbookItem(id: string): Promise<string | undefined> {
+  if (useSample) readOnly();
+  const { data, error } = await supabaseAdmin().from("lookbook").delete().eq("id", id).select("src").maybeSingle();
+  if (error) fail("deleteLookbookItem", error);
+  return (data as { src: string } | null)?.src;
+}
+
+export async function reorderLookbook(ids: string[]) {
+  if (useSample) readOnly();
+  const { error } = await supabaseAdmin().rpc("reorder_lookbook", { ids });
+  if (error) fail("reorderLookbook", error);
 }
 
 // ---------------------------------------------------------------- orders (M-Pesa checkout; service role only)

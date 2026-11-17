@@ -2,10 +2,22 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { deleteProduct, getProduct, getProducts, reorderProducts, upsertProduct } from "@/lib/db";
+import {
+  addLookbookItem,
+  deleteLookbookItem,
+  deleteProduct,
+  getLookbook,
+  getProduct,
+  getProducts,
+  reorderLookbook,
+  reorderProducts,
+  updateLookbookItem,
+  upsertProduct,
+} from "@/lib/db";
 import { IMAGE_BUCKET, imageUrlPrefix, supabaseAdmin, supabaseConfigured, supabasePublicKey } from "@/lib/supabase";
 import { isHex, slugify } from "@/lib/format";
-import { ImageRejected, frameGarmentPhoto, isOpaque, removeBackground } from "@/lib/image";
+import { ImageRejected, lookbookPhoto, prepareGarmentPhoto } from "@/lib/image";
+import { storeProductImage } from "@/lib/storage";
 import {
   CATEGORY_LABELS,
   DEPARTMENT_LABELS,
@@ -15,6 +27,7 @@ import {
   isCategoryOf,
   isDepartment,
   sizesFor,
+  type ImageCredit,
   type Product,
 } from "@/lib/types";
 
@@ -39,7 +52,11 @@ function cleanImage(url: unknown): string | undefined {
   return url.startsWith(prefix) && /^[a-z0-9-]+\.(png|jpe?g|webp|avif)$/i.test(url.slice(prefix.length)) ? url : undefined;
 }
 
-function clean(input: Product): Result<{ product: Product }> {
+/**
+ * `credits`: front photo URL → its stock-photo credit, read from the database (never from the client).
+ * A credit stays only while its photo is still the colour's front; replacing the photo drops it.
+ */
+function clean(input: Product, credits: Map<string, ImageCredit> = new Map()): Result<{ product: Product }> {
   const name = input.name?.trim();
   if (!name) return { ok: false, error: "Give the piece a name." };
   if (!isDepartment(input.department)) return { ok: false, error: "Pick a department." };
@@ -83,7 +100,15 @@ function clean(input: Product): Result<{ product: Product }> {
       hex: c.hex,
       ...(c.trim && isHex(c.trim) ? { trim: c.trim } : {}),
       ...(c.sleeve && isHex(c.sleeve) ? { sleeve: c.sleeve } : {}),
-      ...(front || back ? { images: { ...(front ? { front } : {}), ...(back ? { back } : {}) } } : {}),
+      ...(front || back
+        ? {
+            images: {
+              ...(front ? { front } : {}),
+              ...(back ? { back } : {}),
+              ...(front && credits.get(front) ? { credit: credits.get(front) } : {}),
+            },
+          }
+        : {}),
       stock,
     });
   }
@@ -116,7 +141,10 @@ function clean(input: Product): Result<{ product: Product }> {
 }
 
 export async function saveProduct(input: Product, isNew: boolean): Promise<Result<{ id: string }>> {
-  const res = clean(input);
+  const before = isNew || typeof input?.id !== "string" ? undefined : await getProduct(input.id, { includeDrafts: true });
+  const credits = new Map<string, ImageCredit>();
+  for (const c of before?.colors ?? []) if (c.images?.front && c.images.credit) credits.set(c.images.front, c.images.credit);
+  const res = clean(input, credits);
   if (!res.ok) return res;
   const product = res.product;
   if (isNew) {
@@ -202,22 +230,129 @@ export async function finalizeImageUpload(path: string): Promise<Result<{ public
 
     let framed: Buffer;
     try {
-      let buf: Buffer = Buffer.from(await raw.arrayBuffer());
-      const removeBgKey = process.env.REMOVE_BG_API_KEY?.trim();
-      if (removeBgKey && (await isOpaque(buf))) buf = await removeBackground(buf, raw.type, removeBgKey);
-      framed = await frameGarmentPhoto(buf);
+      framed = await prepareGarmentPhoto(Buffer.from(await raw.arrayBuffer()), raw.type, process.env.REMOVE_BG_API_KEY?.trim());
     } catch (e) {
       if (e instanceof ImageRejected) return { ok: false, error: e.message };
       throw e;
     }
-
-    const name = `${randomUUID()}.webp`;
-    const put = await storage.upload(name, framed, { contentType: "image/webp", cacheControl: "31536000" });
-    if (put.error) return { ok: false, error: "Couldn't save the photo. Try again." };
-    return { ok: true, publicUrl: storage.getPublicUrl(name).data.publicUrl };
+    try {
+      return { ok: true, publicUrl: await storeProductImage(framed) };
+    } catch {
+      return { ok: false, error: "Couldn't save the photo. Try again." };
+    }
   } catch {
     return { ok: false, error: "Couldn't process the photo. Try again." };
   } finally {
     await storage.remove([path]).catch(() => undefined);
   }
+}
+
+// ---------------------------------------------------------------- lookbook ("Off the rack")
+// Uploads reuse step 1 (createImageUpload); step 2 is uploadLookbookImage, which skips the garment
+// cutout/framing. Every action validates its input like clean() does for products.
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function refreshLookbook() {
+  revalidatePath("/");
+  revalidatePath("/admin");
+}
+
+type LookPatch = { caption?: unknown; productId?: unknown; published?: unknown };
+
+/** Validates caption (≤140 chars, one line), product link (must exist) and the publish flag. */
+async function cleanLook(input: LookPatch): Promise<Result<{ caption?: string; product_id?: string | null; published?: boolean }>> {
+  const out: { caption?: string; product_id?: string | null; published?: boolean } = {};
+  if (input.caption !== undefined) {
+    if (typeof input.caption !== "string") return { ok: false, error: "Caption must be text." };
+    const caption = input.caption.replace(/\s+/g, " ").trim();
+    if (caption.length > 140) return { ok: false, error: "Keep the caption under 140 characters." };
+    out.caption = caption;
+  }
+  if (input.productId !== undefined) {
+    if (input.productId === null || input.productId === "") out.product_id = null;
+    else if (typeof input.productId !== "string" || !/^[a-z0-9-]{1,80}$/.test(input.productId))
+      return { ok: false, error: "Unknown product." };
+    else {
+      if (!(await getProduct(input.productId, { includeDrafts: true }))) return { ok: false, error: "Unknown product." };
+      out.product_id = input.productId;
+    }
+  }
+  if (input.published !== undefined) {
+    if (typeof input.published !== "boolean") return { ok: false, error: "Invalid publish setting." };
+    out.published = input.published;
+  }
+  return { ok: true, ...out };
+}
+
+/**
+ * Step 2 of a lookbook upload: reads the raw file from incoming/, auto-orients it, scales it to at most
+ * 1400px tall, saves WebP q80 without metadata (lib/image.ts lookbookPhoto) at the bucket root, and adds
+ * it to the end of the lookbook as a draft. The raw file is always removed.
+ */
+export async function uploadLookbookImage(path: string, meta: LookPatch = {}): Promise<Result<{ id: string }>> {
+  if (!supabaseConfigured) return { ok: false, error: "Photo uploads need Supabase. Add the keys to .env.local." };
+  if (typeof path !== "string" || !INCOMING_RE.test(path)) return { ok: false, error: "Unknown upload. Try again." };
+  const fields = await cleanLook({ caption: meta.caption ?? "", productId: meta.productId ?? null });
+  if (!fields.ok) return fields;
+  const storage = supabaseAdmin().storage.from(IMAGE_BUCKET);
+  try {
+    const { data: raw, error } = await storage.download(path);
+    if (error || !raw) return { ok: false, error: "Couldn't read the upload. Try again." };
+    if (!EXT[raw.type] && raw.type) return { ok: false, error: "Use a PNG, JPG, WebP or AVIF photo." };
+    if (!(raw.size > 0) || raw.size > MAX_BYTES) return { ok: false, error: "Photos must be under 6 MB." };
+    let webp: Buffer;
+    try {
+      webp = await lookbookPhoto(Buffer.from(await raw.arrayBuffer()));
+    } catch (e) {
+      if (e instanceof ImageRejected) return { ok: false, error: e.message };
+      throw e;
+    }
+    const name = `${randomUUID()}.webp`;
+    const put = await storage.upload(name, webp, { contentType: "image/webp", cacheControl: "31536000" });
+    if (put.error) return { ok: false, error: "Couldn't save the photo. Try again." };
+    const id = await addLookbookItem({
+      src: storage.getPublicUrl(name).data.publicUrl,
+      caption: fields.caption ?? "",
+      product_id: fields.product_id ?? null,
+      published: false,
+    });
+    refreshLookbook();
+    return { ok: true, id };
+  } catch {
+    return { ok: false, error: "Couldn't process the photo. Try again." };
+  } finally {
+    await storage.remove([path]).catch(() => undefined);
+  }
+}
+
+/** Caption, product link and publish flag of one photo. */
+export async function saveLookbookItem(id: string, patch: LookPatch): Promise<Result> {
+  if (typeof id !== "string" || !UUID_RE.test(id)) return { ok: false, error: "Unknown photo." };
+  const fields = await cleanLook(patch ?? {});
+  if (!fields.ok) return fields;
+  const { ok: _ok, ...update } = fields;
+  if (!Object.keys(update).length) return { ok: true };
+  await updateLookbookItem(id, update);
+  refreshLookbook();
+  return { ok: true };
+}
+
+export async function removeLookbookItem(id: string): Promise<Result> {
+  if (typeof id !== "string" || !UUID_RE.test(id)) return { ok: false, error: "Unknown photo." };
+  const src = await deleteLookbookItem(id);
+  refreshLookbook();
+  // Best effort: drop the file. The row is already gone either way.
+  const file = src && cleanImage(src) && supabaseConfigured ? src.slice(imageUrlPrefix().length) : undefined;
+  if (file) await supabaseAdmin().storage.from(IMAGE_BUCKET).remove([file]).catch(() => undefined);
+  return { ok: true };
+}
+
+export async function saveLookbookOrder(ids: string[]): Promise<Result> {
+  if (!Array.isArray(ids) || ids.length > 500 || !ids.every((x) => typeof x === "string" && UUID_RE.test(x)))
+    return { ok: false, error: "Invalid order." };
+  const known = new Set((await getLookbook({ includeDrafts: true })).map((l) => l.id));
+  await reorderLookbook(ids.filter((x) => known.has(x)));
+  refreshLookbook();
+  return { ok: true };
 }

@@ -118,3 +118,26 @@ export async function frameGarmentPhoto(input: Buffer): Promise<Buffer> {
     .webp({ quality: 85 }) // alpha is kept; sharp strips metadata unless withMetadata() is asked for
     .toBuffer();
 }
+
+/**
+ * The admin upload pipeline for garment photos, shared with scripts/demo-photos.ts so both produce the
+ * same result: opaque photo + remove.bg key → background removed; then frameGarmentPhoto (trim, fit,
+ * 1000x1300 transparent canvas, WebP). Throws ImageRejected with a user-facing message.
+ */
+export async function prepareGarmentPhoto(input: Buffer, type: string, removeBgKey?: string): Promise<Buffer> {
+  let buf = input;
+  if (removeBgKey && (await isOpaque(buf))) buf = await removeBackground(buf, type, removeBgKey);
+  return frameGarmentPhoto(buf);
+}
+
+/**
+ * Lookbook photos (opaque lifestyle shots, not garments): no cutout, no framing. Auto-orient from EXIF,
+ * at most 1400px tall (never enlarged), WebP q80. sharp writes no metadata unless asked, so EXIF/GPS is gone.
+ */
+export async function lookbookPhoto(input: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(input).rotate().resize({ height: 1400, withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+  } catch {
+    throw new ImageRejected("Couldn't read that photo. Use a PNG, JPG, WebP or AVIF file.");
+  }
+}

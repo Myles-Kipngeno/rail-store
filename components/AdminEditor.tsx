@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
 import { useState, useTransition } from "react";
 import { createImageUpload, finalizeImageUpload, removeProduct, saveOrder, saveProduct } from "@/app/admin/actions";
 import { formatKES, shade, totalStock } from "@/lib/format";
@@ -25,6 +26,7 @@ import {
   type Colorway,
   type Department,
   type Print,
+  type LookbookItem,
   type Product,
   type Side,
 } from "@/lib/types";
@@ -54,7 +56,10 @@ const blankProduct = (): Product => ({
   createdAt: "",
 });
 
-export default function AdminEditor({ products }: { products: Product[] }) {
+const LookbookAdmin = dynamic(() => import("./LookbookAdmin"));
+
+export default function AdminEditor({ products, lookbook }: { products: Product[]; lookbook: LookbookItem[] }) {
+  const [tab, setTab] = useState<"pieces" | "lookbook">("pieces");
   const router = useRouter();
   const [pending, start] = useTransition();
   /** "<colour index>-<side>" of the photo slot whose background the server is removing. */
@@ -182,16 +187,28 @@ export default function AdminEditor({ products }: { products: Product[] }) {
           RAIL
         </Link>
         <span className="muted mono">Admin</span>
+        <div className="seg" role="group" aria-label="Admin section">
+          {(["pieces", "lookbook"] as const).map((t) => (
+            <button key={t} type="button" className={tab === t ? "is-on" : ""} aria-pressed={tab === t} onClick={() => setTab(t)}>
+              {t === "pieces" ? "Pieces" : "Lookbook"}
+            </button>
+          ))}
+        </div>
         <div className="admin-top-right">
           <Link href="/" className="nav-link" target="_blank">
             View store ↗
           </Link>
-          <button className="btn btn--primary btn--sm" onClick={newPiece}>
-            + New piece
-          </button>
+          {tab === "pieces" && (
+            <button className="btn btn--primary btn--sm" onClick={newPiece}>
+              + New piece
+            </button>
+          )}
         </div>
       </header>
 
+      {tab === "lookbook" ? (
+        <LookbookAdmin items={lookbook} products={products} />
+      ) : (
       <div className="admin-grid">
         {/* list */}
         <aside className="admin-list" aria-label="Pieces on the rack">
@@ -533,6 +550,7 @@ export default function AdminEditor({ products }: { products: Product[] }) {
           <p className="mono muted">{formatKES(draft.price || 0)}</p>
         </aside>
       </div>
+      )}
     </div>
   );
 }
