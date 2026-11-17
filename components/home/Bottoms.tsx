@@ -11,10 +11,21 @@ import {
 } from "motion/react";
 import { useRef, useState, type CSSProperties } from "react";
 import { formatKES } from "@/lib/format";
+import type { Product } from "@/lib/types";
+import { Garment } from "../Garment";
 import type { ImgProps } from "./shot";
 
-/** `img`: next/image props computed on the server (imgProps in ./shot), so no next/image code ships here. */
-export type Pair = { id: string; name: string; price: number; img: ImgProps };
+/**
+ * `img`: next/image props computed on the server (imgProps in ./shot), so no next/image code ships here.
+ * `drawn`: a pair without a photo, drawn by Garment (Trousers.tsx).
+ */
+export type Pair = { id: string; name: string; price: number } & ({ img: ImgProps; drawn?: never } | { drawn: Product; img?: never });
+
+function PairShot({ pair, alt }: { pair: Pair; alt?: string }) {
+  if (pair.drawn) return <Garment product={pair.drawn} color={pair.drawn.colors[0]} className="bottoms-drawn" />;
+  // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+  return <img {...pair.img} {...(alt !== undefined ? { alt } : {})} className="shot-img" />;
+}
 
 /**
  * Bottoms, one pair at a time.
@@ -79,8 +90,7 @@ export default function Bottoms({ pairs }: { pairs: Pair[] }) {
           <li key={pair.id}>
             <Link href={`/p/${pair.id}`} className="bottoms-card">
               <span className="bottoms-card-shot">
-                {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
-                <img {...pair.img} className="shot-img" />
+                <PairShot pair={pair} />
               </span>
               <span className="row-name">{pair.name}</span>
               <span className="row-price mono">{formatKES(pair.price)}</span>
@@ -121,8 +131,7 @@ function PairPhoto({ pair, i, n, progress }: { pair: Pair; i: number; n: number;
   return (
     // Decorative: the copy beside it names the current pair and links to it.
     <motion.div className="bottoms-photo" style={{ opacity, x, y, scale, filter }} aria-hidden="true">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img {...pair.img} alt="" className="shot-img" />
+      <PairShot pair={pair} alt="" />
     </motion.div>
   );
 }

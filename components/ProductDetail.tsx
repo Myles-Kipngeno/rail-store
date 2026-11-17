@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { formatKES, totalStock } from "@/lib/format";
-import { sizesFor, type Product, type Side, type Size } from "@/lib/types";
+import { drawnType, sideLabel, sizesFor, type Product, type Side, type Size } from "@/lib/types";
 import { useBag } from "./BagProvider";
 import { AddToBagButton, Header } from "./Chrome";
 import { Garment } from "./Garment";
@@ -77,7 +77,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                 className={`thumb ${side === s ? "is-on" : ""}`}
                 aria-pressed={side === s}
                 onClick={() => setSide(s)}
-                aria-label={s === "front" ? "Front" : "Back"}
+                aria-label={sideLabel(drawnType(product), s)}
               >
                 <Garment product={product} color={color} side={s} />
               </button>

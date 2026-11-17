@@ -93,10 +93,11 @@ const SYSTEM_SIZES: Record<SizeSystem, readonly Size[]> = {
 export const sizesFor = (p: Pick<Product, "department" | "category">): readonly Size[] =>
   SYSTEM_SIZES[sizeSystemFor(p.department, p.category)];
 
-/** Only tops have a drawn-garment fallback. Everything else needs a real front photo to be published. */
-export const hasDrawnFallback = (p: Pick<Product, "department">) => p.department === "tops";
-
-export const GARMENT_TYPES = ["tee", "long", "shirt", "hoodie", "tank", "jacket", "jersey"] as const;
+export const GARMENT_TYPES = [
+  "tee", "long", "shirt", "hoodie", "tank", "jacket", "jersey",
+  "pants", "cargo", "joggers", "shorts",
+  "sneaker", "boot", "slide",
+] as const;
 export type GarmentType = (typeof GARMENT_TYPES)[number];
 
 export const GARMENT_LABELS: Record<GarmentType, string> = {
@@ -107,11 +108,51 @@ export const GARMENT_LABELS: Record<GarmentType, string> = {
   tank: "Tank top",
   jacket: "Jacket",
   jersey: "Jersey",
+  pants: "Trousers",
+  cargo: "Cargo pants",
+  joggers: "Joggers",
+  shorts: "Shorts",
+  sneaker: "Sneakers",
+  boot: "Boots",
+  slide: "Slides",
 };
+
+/**
+ * The drawing shapes each department can use. Departments listed here have a drawn fallback: a colour
+ * without a photo is drawn (components/Garment.tsx, Trousers.tsx, Shoe.tsx). The rest (formal,
+ * accessories) need a real front photo to be published, and keep `type` only as a placeholder.
+ */
+export const DRAWN_TYPES: Partial<Record<Department, readonly GarmentType[]>> = {
+  tops: ["tee", "long", "shirt", "hoodie", "tank", "jacket", "jersey"],
+  bottoms: ["pants", "cargo", "joggers", "shorts"],
+  shoes: ["sneaker", "boot", "slide"],
+};
+
+export const hasDrawnFallback = (p: Pick<Product, "department">) => Boolean(DRAWN_TYPES[p.department]);
+
+/** The shape to draw: the product's own type when it fits its department, else the department's first. */
+export function drawnType(p: Pick<Product, "type"> & Partial<Pick<Product, "department">>): GarmentType {
+  const allowed = p.department ? DRAWN_TYPES[p.department] : undefined;
+  return !allowed || allowed.includes(p.type) ? p.type : allowed[0];
+}
+
+export const isBottomType = (t: GarmentType) => DRAWN_TYPES.bottoms!.includes(t);
+export const isShoeType = (t: GarmentType) => DRAWN_TYPES.shoes!.includes(t);
 
 /** Graphics drawn on the built-in garment illustration (used when a colour has no photo). */
 export const PRINT_KINDS = ["text", "logo", "drip", "hands", "distress", "letter", "number", "badge"] as const;
 export type PrintKind = (typeof PRINT_KINDS)[number];
+
+/** Graphics each shape can carry: trousers take small text on the thigh, shoes none. */
+export function printKindsFor(type: GarmentType): readonly PrintKind[] {
+  if (isShoeType(type)) return [];
+  if (isBottomType(type)) return ["text", "logo", "letter"];
+  return PRINT_KINDS;
+}
+
+/** Label of the two sides in flip toggles and thumbnails: shoes are seen from the side and the heel. */
+export const sideLabel = (type: GarmentType, side: Side) =>
+  isShoeType(type) ? (side === "front" ? "Side" : "Heel") : side === "front" ? "Front" : "Back";
 
 export const PRINT_LABELS: Record<PrintKind, string> = {
   text: "Big text",
@@ -136,7 +177,7 @@ export interface Colorway {
   id: string;
   name: string;
   hex: string;
-  /** Rib, collar and stripe colour. */
+  /** Rib, collar and stripe colour. Trousers: waistband, cuffs and (when it differs) a side stripe. Shoes: the sole. */
   trim?: string;
   /** Sleeve colour (varsity-style jackets). */
   sleeve?: string;
@@ -148,7 +189,7 @@ export interface Colorway {
 export interface Product {
   id: string;
   name: string;
-  /** Shape of the drawn garment (only used for tops without photos). */
+  /** Shape of the drawn garment, used for colours without a photo. One of DRAWN_TYPES[department]. */
   type: GarmentType;
   department: Department;
   /** Always one of CATEGORIES[department]. */

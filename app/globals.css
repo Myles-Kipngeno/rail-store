@@ -2508,3 +2508,20 @@ button {
     order: -1;
   }
 }
+
+/* ───────── drawn shoes (components/Shoe.tsx, viewBox 240 x 140) ───────── */
+/* Fill the box the photo would fill and sit centred in it (preserveAspectRatio meet). */
+.garment--shoe {
+  height: 100%;
+}
+/* On the shelf the sole stands on the ledge: bottom-aligned, the 8/140 below the sole tucked under. */
+.shoe-img .garment--shoe {
+  position: absolute;
+  inset: auto 0 0;
+  height: auto;
+  transform: translateY(5.7%);
+}
+.bottoms-drawn {
+  height: 100%;
+  filter: drop-shadow(0 22px 22px rgb(0 0 0 / 0.14));
+}

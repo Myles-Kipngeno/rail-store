@@ -11,11 +11,15 @@ import {
   CATEGORY_LABELS,
   DEPARTMENT_LABELS,
   DEPARTMENTS,
+  DRAWN_TYPES,
   GARMENT_LABELS,
-  GARMENT_TYPES,
-  PRINT_KINDS,
   PRINT_LABELS,
+  drawnType,
   hasDrawnFallback,
+  isBottomType,
+  isShoeType,
+  printKindsFor,
+  sideLabel,
   sizesFor,
   type Category,
   type Colorway,
@@ -68,14 +72,22 @@ export default function AdminEditor({ products }: { products: Product[] }) {
   const setColor = (i: number, patch: Partial<Colorway>) =>
     setDraft((d) => ({ ...d, colors: d.colors.map((c, j) => (j === i ? { ...c, ...patch } : c)) }));
   const setPrints = (side: Side, list: Print[]) => setDraft((d) => ({ ...d, print: { ...d.print, [side]: list } }));
-  /** Department/category decide the size system: keep the counts for sizes that still exist, drop the rest. */
+  /**
+   * Department/category decide the size system: keep the counts for sizes that still exist, drop the rest.
+   * The drawing shape follows the department too (trousers for bottoms, shoes for shoes), and graphics
+   * the new shape can't carry are dropped.
+   */
   const setKind = (department: Department, category: Category) =>
     setDraft((d) => {
       const sizes = sizesFor({ department, category });
+      const type = drawnType({ type: d.type, department });
+      const kinds = printKindsFor(type);
       return {
         ...d,
         department,
         category,
+        type,
+        print: { front: d.print.front.filter((p) => kinds.includes(p.k)), back: d.print.back.filter((p) => kinds.includes(p.k)) },
         colors: d.colors.map((c) => ({
           ...c,
           stock: Object.fromEntries(sizes.map((s) => [s, c.stock[s] ?? 0])),
@@ -84,6 +96,8 @@ export default function AdminEditor({ products }: { products: Product[] }) {
     });
   const sizes = sizesFor(draft);
   const drawn = hasDrawnFallback(draft);
+  const shape = drawnType(draft);
+  const printKinds = printKindsFor(shape);
 
   const edit = (p: Product) => {
     setDraft(structuredClone(p));
@@ -263,8 +277,8 @@ export default function AdminEditor({ products }: { products: Product[] }) {
             {drawn && (
               <label className="field">
                 <span className="field-label">Garment (drawing shape)</span>
-                <select id="f-type" value={draft.type} onChange={(e) => set("type", e.target.value as Product["type"])}>
-                  {GARMENT_TYPES.map((t) => (
+                <select id="f-type" value={shape} onChange={(e) => set("type", e.target.value as Product["type"])}>
+                  {(DRAWN_TYPES[draft.department] ?? []).map((t) => (
                     <option key={t} value={t}>
                       {GARMENT_LABELS[t]}
                     </option>
@@ -300,11 +314,11 @@ export default function AdminEditor({ products }: { products: Product[] }) {
                   />
                   {drawn && (
                     <label className="mini">
-                      Trim
+                      {isShoeType(shape) ? "Sole" : isBottomType(shape) ? "Waistband" : "Trim"}
                       <input type="color" value={c.trim ?? shade(c.hex, -0.12)} onChange={(e) => setColor(i, { trim: e.target.value })} />
                     </label>
                   )}
-                  {drawn && draft.type === "jacket" && (
+                  {drawn && shape === "jacket" && (
                     <label className="mini">
                       Sleeves
                       <input type="color" value={c.sleeve ?? c.hex} onChange={(e) => setColor(i, { sleeve: e.target.value })} />
@@ -374,9 +388,9 @@ export default function AdminEditor({ products }: { products: Product[] }) {
             </button>
           </fieldset>
 
-          {drawn && (
+          {drawn && printKinds.length > 0 && (
             <fieldset className="block">
-              <legend>Graphics (drawn garment only)</legend>
+              <legend>Graphics (drawn garment only{isBottomType(shape) ? ", small on the left thigh" : ""})</legend>
               {(["front", "back"] as const).map((side) => (
                 <div key={side} className="print-side">
                   <span className="field-label">{side === "front" ? "Front" : "Back"}</span>
@@ -389,7 +403,7 @@ export default function AdminEditor({ products }: { products: Product[] }) {
                         }
                         onFocus={() => setPreviewSide(side)}
                       >
-                        {PRINT_KINDS.map((k) => (
+                        {printKinds.map((k) => (
                           <option key={k} value={k}>
                             {PRINT_LABELS[k]}
                           </option>
@@ -511,7 +525,7 @@ export default function AdminEditor({ products }: { products: Product[] }) {
           <div className="seg" role="group" aria-label="Preview side">
             {(["front", "back"] as const).map((s) => (
               <button key={s} type="button" className={previewSide === s ? "is-on" : ""} aria-pressed={previewSide === s} onClick={() => setPreviewSide(s)}>
-                {s === "front" ? "Front" : "Back"}
+                {sideLabel(shape, s)}
               </button>
             ))}
           </div>

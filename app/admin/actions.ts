@@ -9,9 +9,9 @@ import { ImageRejected, frameGarmentPhoto, isOpaque, removeBackground } from "@/
 import {
   CATEGORY_LABELS,
   DEPARTMENT_LABELS,
-  GARMENT_TYPES,
-  PRINT_KINDS,
+  DRAWN_TYPES,
   hasDrawnFallback,
+  printKindsFor,
   isCategoryOf,
   isDepartment,
   sizesFor,
@@ -46,8 +46,11 @@ function clean(input: Product): Result<{ product: Product }> {
   const department = input.department;
   if (!isCategoryOf(department, input.category)) return { ok: false, error: `Pick a ${DEPARTMENT_LABELS[department].toLowerCase()} category.` };
   const category = input.category;
-  // `type` only shapes the drawn garment (tops). Other departments keep a valid placeholder for the column.
-  const type = GARMENT_TYPES.includes(input.type) ? input.type : department === "tops" ? undefined : "tee";
+  // `type` shapes the drawn garment: one of DRAWN_TYPES[department]. Tops must pick one; bottoms and shoes
+  // fall back to their department's first shape (older rows carry a "tee" placeholder). Departments
+  // without drawings keep a valid placeholder for the column.
+  const allowed = DRAWN_TYPES[department];
+  const type = !allowed ? "tee" : allowed.includes(input.type) ? input.type : department === "tops" ? undefined : allowed[0];
   if (!type) return { ok: false, error: "Pick a garment type." };
   const sizes = sizesFor({ department, category });
   const published = Boolean(input.published);
@@ -85,10 +88,11 @@ function clean(input: Product): Result<{ product: Product }> {
     });
   }
 
-  // Graphics only exist on the drawn garment, which only tops have.
+  // Graphics only exist on the drawn garment, and each shape takes its own kinds (none on shoes).
+  const kinds = hasDrawnFallback({ department }) ? printKindsFor(type) : [];
   const prints = (list: Product["print"]["front"] = []) =>
-    (hasDrawnFallback({ department }) ? list : [])
-      .filter((p) => PRINT_KINDS.includes(p.k))
+    list
+      .filter((p) => kinds.includes(p.k))
       .slice(0, 4)
       .map((p) => ({ k: p.k, ...(p.t ? { t: String(p.t).slice(0, 40) } : {}), ...(p.n ? { n: String(p.n).slice(0, 3) } : {}) }));
 

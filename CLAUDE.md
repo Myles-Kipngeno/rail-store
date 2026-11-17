@@ -44,7 +44,9 @@ components/Chrome.tsx        Header (department nav; ≤980px a Menu button), Ti
 components/MenuSheet.tsx     phone menu: full-screen sheet, staggered links (loaded on demand via next/dynamic)
 components/shop/CategoryFilter.tsx  chips + ?category= for the shelf and grid department pages
 components/Pieces.tsx        ColorLayers (wipe), Flipper, HangTags, SizePicker
-components/Garment.tsx       SVG garment renderer, or the uploaded photo when present
+components/Garment.tsx       SVG garment renderer, or the uploaded photo when present. Delegates bottoms to
+                             Trousers.tsx (same 200×260 box, clip hanger) and shoes to Shoe.tsx (240×140, toe
+                             right; "back" = heel view). Both are next/dynamic so they stay off the home first load.
 components/BagProvider.tsx   cart context, persisted to localStorage
 components/BagDrawer.tsx     cart drawer + WhatsApp order + toast
 components/ProductDetail.tsx /p/[id] client view
@@ -74,16 +76,17 @@ Stock is per colour per size, and the size system comes from department/category
 - shoes: EU `38`–`46`
 - accessories: `ONE`
 
-A colourway may have `images.front/back` (real photos). Only tops have the drawn fallback: without a photo the SVG illustration is drawn from `type` + `print` (`type`, `print`, trim and sleeves mean nothing for other departments). Every other department needs a front photo on every colour before it can be published (`hasDrawnFallback()`, enforced in `clean()`); drafts can be saved without one. Rack order = `products.position` (admin ↑/↓ changes it). Reads come from the `product_documents` view, already shaped as `Product`. `published: false` = draft, hidden from the store.
+A colourway may have `images.front/back` (real photos). Tops, bottoms and shoes have a drawn fallback: without a photo the SVG is drawn from `type` + `print`. `DRAWN_TYPES[department]` lists the shapes each may use (tops: tee…jersey; bottoms: pants, cargo, joggers, shorts; shoes: sneaker, boot, slide); `drawnType()` falls back to the department's first shape. `trim` is the rib/collar on tops, the waistband/cuffs on trousers (plus a side stripe when it differs from `hex`), and the sole on shoes. `printKindsFor(type)`: trousers take text/logo/letter (small, left thigh), shoes none. Formal and accessories need a front photo on every colour before they can be published (`hasDrawnFallback()`, enforced in `clean()`); drafts can be saved without one. New `garment_type` values need a migration (Postgres enum). Rack order = `products.position` (admin ↑/↓ changes it). Reads come from the `product_documents` view, already shaped as `Product`. `published: false` = draft, hidden from the store.
 
 ## The rack UI spec (source of truth, keep it exactly)
 1. **Rack**: one rod; pieces edge-on at `rotateY(64deg)` in `--slot` wide slots, overlapping. Pieces after the hovered one turn the other way (`-64deg`).
+   Drawn trousers hang from a clip hanger (straight bar, two clips at the waistband corners) with the hook at the same y≈10, so they share the rod line with the tops.
 2. **Hover / focus / first tap**: slot widens to `--open`, garment turns to `0deg` + `translateZ(18px)`, 0.62s `cubic-bezier(.2,.8,.2,1)`. Caption shows name, price, colour dots.
 3. **Click / second tap → item view**: FLIP flight of the garment from its hanger to centre (760ms, WAAPI `fly()` in Store.tsx). Other slots blur and fade with a stagger (`--d` × 22ms). Ghosts and the info panel fade in after 420ms.
    - **Add to bag** (item view and `/p/<id>`, `AddToBagButton` in Chrome.tsx): no size → the size shake, nothing flies. Otherwise the button keeps its width and shows a 14px spinner + "Adding" (550ms); then a copy of the garment (`flyToBag()`, WAAPI, middle keyframe at offset .45 lifted above the line = the arc) flies from its rect to the header Bag button in 700ms, scaling to 0.12 and fading out. `bag.add()` fires when it lands: the count springs 1 → 1.35 → 1 and the Bag button gets a brief lime ring (`bag.pulse`). The button reads "Added to bag ✓" for 2.4s with a "View bag →" link sliding in under it (opens the drawer), then resets. "Buy it now" on `/p/<id>` adds instantly.
 4. **Item view**: centre card sharp; neighbours at `scale .72, blur 5px, opacity .34`; far cards hidden. Arrows, ←/→ keys, swipe. Clicking a ghost navigates.
 5. **Colour**: hang tags right of the shoulder. Selected tag drops 12px with a ring. Change = new layer revealed bottom→top with `clip-path` (0.75s); old layers removed after.
-6. **Front/Back**: rotate to 90°, swap the side, rotate back from -90° (0.2s + 0.34s).
+6. **Front/Back** (drawn shoes: "Side / Heel", `sideLabel()`): rotate to 90°, swap the side, rotate back from -90° (0.2s + 0.34s).
 7. **Close** (round × top-right / Esc / ← Back to rack, all via `requestClose()`): first the item view scales 1 → 0.94 and the info panel fades (200ms); then the reverse flight onto its hanger (680ms). Rack slots come back with a 30ms stagger outward from the landed piece (`--d` × 30ms), and the landed piece does one small swing (1.5°).
 8. `?piece=<id>` deep-links into the item view. `/p/<id>?c=<colourId>` is the full page.
 9. `prefers-reduced-motion` turns the flights, wipes and flips off. Add to bag then adds at once and only the button state changes (no spinner, flight, bounce or ring); close skips the 200ms shrink and the swing.

@@ -1,13 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useId, type ReactNode } from "react";
 import { inkFor, seeded, shade } from "@/lib/format";
-import type { Colorway, GarmentType, Print, Product, Side } from "@/lib/types";
+import { drawnType, isBottomType, isShoeType, type Colorway, type Print, type Product, type Side } from "@/lib/types";
+
+// Split out: the home rack is tops only, so the trouser and shoe drawings load only where they're drawn
+// (still server-rendered). Keeps them off the home page's first-load JS.
+const Shoe = dynamic(() => import("./Shoe").then((m) => m.Shoe));
+const Trousers = dynamic(() => import("./Trousers").then((m) => m.Trousers));
 
 /*
  * Garment illustration. viewBox 200 x 260. The hanger hook tops out at y≈10, which is where
  * the rack's rod sits, so every garment hangs from the same line.
  * When a colour has a real photo for this side, the photo is shown instead.
+ * Bottoms are drawn by Trousers.tsx (same viewBox, clip hanger) and shoes by Shoe.tsx (240 x 140).
  */
 
 const TEE = "M74 44 Q100 58 126 44 L150 50 L186 86 L166 110 L150 96 L150 252 L50 252 L50 96 L34 110 L14 86 L50 50 Z";
@@ -17,7 +24,9 @@ const TANK = "M76 44 Q100 76 124 44 L134 46 Q134 82 152 98 L152 252 L48 252 L48 
 const SLEEVE_L = "M50 50 Q34 58 28 84 L14 206 L34 210 L48 112 Z";
 const SLEEVE_R = "M150 50 Q166 58 172 84 L186 206 L166 210 L152 112 Z";
 
-const BODY: Record<GarmentType, string> = {
+type TopType = "tee" | "jersey" | "long" | "shirt" | "hoodie" | "jacket" | "tank";
+
+const BODY: Record<TopType, string> = {
   tee: TEE,
   jersey: TEE,
   long: LONG,
@@ -34,7 +43,7 @@ const DISPLAY = {
 } as const;
 
 type GarmentProps = {
-  product: Pick<Product, "id" | "type" | "print" | "name">;
+  product: Pick<Product, "id" | "type" | "print" | "name"> & Partial<Pick<Product, "department">>;
   color: Colorway;
   side?: Side;
   className?: string;
@@ -62,12 +71,23 @@ export function Garment({ product, color, side = "front", className, sheen }: Ga
     );
   }
 
-  const body = BODY[product.type];
+  const type = drawnType(product);
+  const label = `${product.name}, ${color.name}, ${side}`;
+  const prints = side === "front" ? product.print.front : product.print.back;
+  // Trousers/shoes: ids from product + colour + side, not useId. Their defs depend on nothing else, so a
+  // repeated id always points at an identical definition, and the ids can't differ between server and
+  // client (the home Bottoms section is a lazily loaded tree where useId did).
+  const sid = `d-${product.id}-${color.id}-${side}`.replace(/[^a-zA-Z0-9-]/g, "");
+  if (isShoeType(type)) return <Shoe uid={sid} type={type} color={color} side={side} label={label} className={className} />;
+  if (isBottomType(type))
+    return <Trousers uid={sid} type={type} color={color} side={side} prints={prints} label={label} className={className} />;
+
+  const top = type as TopType;
+  const body = BODY[top];
   const base = color.hex;
   const dark = shade(base, -0.22);
   const trim = color.trim ?? shade(base, -0.12);
   const ink = inkFor(base);
-  const prints = side === "front" ? product.print.front : product.print.back;
   const rnd = seeded(`${product.id}-${side}`);
 
   return (
@@ -75,7 +95,7 @@ export function Garment({ product, color, side = "front", className, sheen }: Ga
       viewBox="0 0 200 260"
       className={`garment ${className ?? ""}`}
       role="img"
-      aria-label={`${product.name}, ${color.name}, ${side}`}
+      aria-label={label}
     >
       <defs>
         <linearGradient id={`${uid}s`} x1="0" x2="1">
@@ -97,16 +117,16 @@ export function Garment({ product, color, side = "front", className, sheen }: Ga
       <path d="M56 52 L100 30 L144 52" stroke="#262624" strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M100 31 V22 Q100 10 109 10 Q118 10 118 19" stroke="#262624" strokeWidth="3" fill="none" strokeLinecap="round" />
 
-      {product.type === "hoodie" && side === "front" && (
+      {top === "hoodie" && side === "front" && (
         <path d="M68 48 Q70 16 100 14 Q130 16 132 48 Q100 66 68 48 Z" fill={dark} />
       )}
 
       <path d={body} fill={base} />
 
       <g clipPath={`url(#${uid}c)`}>
-        {typeDetails(product.type, side, color, trim, dark)}
+        {typeDetails(top, side, color, trim, dark)}
         {prints.map((p, i) => (
-          <g key={i}>{renderPrint(p, product.type, side, ink, base, color, rnd)}</g>
+          <g key={i}>{renderPrint(p, top, side, ink, base, color, rnd)}</g>
         ))}
         {/* folds */}
         <path d="M80 118 Q74 182 82 252" stroke="#000" strokeOpacity=".07" strokeWidth="7" fill="none" />
@@ -117,12 +137,12 @@ export function Garment({ product, color, side = "front", className, sheen }: Ga
       </g>
 
       <path d={body} fill="none" stroke="#000" strokeOpacity=".18" strokeWidth="1" />
-      {neckline(product.type, side, trim, dark)}
+      {neckline(top, side, trim, dark)}
     </svg>
   );
 }
 
-function neckline(type: GarmentType, side: Side, trim: string, dark: string): ReactNode {
+function neckline(type: TopType, side: Side, trim: string, dark: string): ReactNode {
   if (type === "tank") return null;
   if (side === "back") return <path d="M76 45 Q100 52 124 45" stroke={dark} strokeWidth="3" fill="none" />;
   if (type === "shirt" || type === "jacket" || type === "jersey") return null;
@@ -131,7 +151,7 @@ function neckline(type: GarmentType, side: Side, trim: string, dark: string): Re
   return <path d="M74 45 Q100 60 126 45" stroke={dark} strokeWidth="4" fill="none" strokeLinecap="round" />;
 }
 
-function typeDetails(type: GarmentType, side: Side, color: Colorway, trim: string, dark: string): ReactNode {
+function typeDetails(type: TopType, side: Side, color: Colorway, trim: string, dark: string): ReactNode {
   const front = side === "front";
   switch (type) {
     case "shirt":
@@ -209,7 +229,7 @@ function typeDetails(type: GarmentType, side: Side, color: Colorway, trim: strin
 
 function renderPrint(
   p: Print,
-  type: GarmentType,
+  type: TopType,
   side: Side,
   ink: string,
   base: string,

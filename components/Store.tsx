@@ -13,7 +13,7 @@ import {
   type PointerEvent as RPointerEvent,
 } from "react";
 import { formatKES, totalStock } from "@/lib/format";
-import { sizesFor, type Product, type Side, type Size } from "@/lib/types";
+import { drawnType, sideLabel, sizesFor, type Product, type Side, type Size } from "@/lib/types";
 import { AddToBagButton, Header, Ticker } from "./Chrome";
 import { Garment } from "./Garment";
 import { ColorLayers, EASE, Flipper, HangTags, SizePicker } from "./Pieces";
@@ -631,7 +631,7 @@ function ItemView({
           <div className="seg" role="group" aria-label="Side">
             {(["front", "back"] as const).map((s) => (
               <button key={s} aria-pressed={side === s} className={side === s ? "is-on" : ""} onClick={() => setSide(s)}>
-                {s === "front" ? "Front" : "Back"}
+                {sideLabel(drawnType(cur), s)}
               </button>
             ))}
           </div>
