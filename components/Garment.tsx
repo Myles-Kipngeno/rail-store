@@ -49,9 +49,14 @@ type GarmentProps = {
   className?: string;
   /** Rack only: a highlight masked to the photo's alpha that follows --sx/--sy (set by the rack on pointermove). */
   sheen?: boolean;
+  /**
+   * Trousers/shoes only: prefix for their SVG ids (default "d"). Give a copy that can be hidden
+   * (display: none) its own prefix, or other copies' url(#…) would point into it and lose their defs.
+   */
+  idPrefix?: string;
 };
 
-export function Garment({ product, color, side = "front", className, sheen }: GarmentProps) {
+export function Garment({ product, color, side = "front", className, sheen, idPrefix = "d" }: GarmentProps) {
   const uid = "g" + useId().replace(/[^a-zA-Z0-9]/g, "");
   const photo = color.images?.[side];
 
@@ -76,8 +81,8 @@ export function Garment({ product, color, side = "front", className, sheen }: Ga
   const prints = side === "front" ? product.print.front : product.print.back;
   // Trousers/shoes: ids from product + colour + side, not useId. Their defs depend on nothing else, so a
   // repeated id always points at an identical definition, and the ids can't differ between server and
-  // client (the home Bottoms section is a lazily loaded tree where useId did).
-  const sid = `d-${product.id}-${color.id}-${side}`.replace(/[^a-zA-Z0-9-]/g, "");
+  // client (the home showcase is a lazily loaded tree where useId did).
+  const sid = `${idPrefix}-${product.id}-${color.id}-${side}`.replace(/[^a-zA-Z0-9-]/g, "");
   if (isShoeType(type)) return <Shoe uid={sid} type={type} color={color} side={side} label={label} className={className} />;
   if (isBottomType(type))
     return <Trousers uid={sid} type={type} color={color} side={side} prints={prints} label={label} className={className} />;

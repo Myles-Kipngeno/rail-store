@@ -205,6 +205,18 @@ export default function Store({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
+  // The item view locks page scroll to the rack: the sections and footer below it are hidden while
+  // it's open (globals.css, html[data-item-open]). Not overflow: hidden, because on short screens the
+  // info panel reaches below the fold and must stay scrollable.
+  useEffect(() => {
+    if (view !== "item") return;
+    const html = document.documentElement;
+    html.dataset.itemOpen = "";
+    return () => {
+      delete html.dataset.itemOpen;
+    };
+  }, [view]);
+
   // Keyboard: ←/→ browse, F flips, Esc returns to the rack.
   useEffect(() => {
     if (view !== "item") return;

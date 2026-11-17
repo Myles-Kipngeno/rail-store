@@ -16,6 +16,12 @@
 
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --gutter: max(16px, 3vw);
+  /* home showcase (components/home/Showcase.tsx) */
+  --showcase-seg: 80vh; /* scroll each item owns while pinned */
+  --showcase-h: 62svh;
+  --showcase-w: calc(var(--showcase-h) * 200 / 260);
+  --showcase-shoe-w: min(30vw, calc(var(--showcase-h) * 240 / 140)); /* narrower: the ghost sits 26vw to the right */
+  --showcase-x: 8vw; /* left column */
 
   /* rack geometry (--slot / --open are derived on .rail from the rack's own garment width) */
   --gw: 210px; /* garment width (item view; the rack's upper limit) */
@@ -569,6 +575,11 @@ button {
 }
 
 /* ───────── item view ───────── */
+/* open: page scroll stops at the rack (Store.tsx sets data-item-open) */
+html[data-item-open] .store ~ .home,
+html[data-item-open] .store ~ .foot {
+  display: none;
+}
 .item-view {
   position: absolute;
   inset: 0;
@@ -1789,35 +1800,73 @@ button {
   color: var(--muted);
 }
 
-/* bottoms: pinned on desktop, swipe carousel on phones */
-.bottoms-pin {
+/* showcase: pinned scroll per department (components/home/Showcase.tsx) */
+.showcase-pin {
   position: relative;
-  height: max(100vh, calc(var(--n, 1) * 80vh));
+  /* the stage stays pinned for n segments, then releases */
+  height: calc(100svh + var(--n, 1) * var(--showcase-seg));
 }
-.bottoms-stage {
+.showcase-stage {
   position: sticky;
   top: 0;
-  height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
-  align-items: center;
-  padding: 0 var(--gutter);
+  height: 100svh;
   overflow: hidden;
 }
-.bottoms-copy {
-  position: relative;
+.showcase-items {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--showcase-w);
+  height: var(--showcase-h);
+  transform: translate(-50%, -50%);
+}
+.showcase--shoes .showcase-items {
+  width: var(--showcase-shoe-w);
+}
+.showcase-item {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.showcase-item .shot-img,
+.showcase-drawn {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 22px 22px rgb(0 0 0 / 0.14));
+}
+.showcase-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.showcase-copy {
+  position: absolute;
   z-index: 2;
+  left: var(--showcase-x);
+  top: 50%;
+  width: min(24vw, 340px);
+  transform: translateY(-50%);
+}
+.showcase-count {
+  margin: 6px 0 18px;
+  font-size: 12px;
+  color: var(--muted);
+}
+/* masked text swap: old slides up out of the mask, new comes in from below */
+.showcase-mask {
+  display: grid;
+  overflow: hidden;
+}
+.showcase-text {
+  grid-area: 1 / 1;
   display: grid;
   gap: 10px;
   justify-items: start;
-  align-content: center;
+  align-content: start;
 }
-.bottoms-copy-item {
-  display: grid;
-  gap: 10px;
-  justify-items: start;
-}
-.bottoms-name {
+.showcase-name {
   margin: 0;
   font-size: clamp(26px, 3.4vw, 46px);
   font-weight: 900;
@@ -1825,57 +1874,77 @@ button {
   text-transform: uppercase;
   line-height: 0.95;
 }
-.bottoms-price {
+.showcase-price {
   margin: 0 0 6px;
   font-size: 14px;
 }
-.bottoms-count {
-  margin: 14px 0 0;
+.showcase-progress {
+  position: absolute;
+  left: var(--showcase-x);
+  bottom: 6svh;
+  display: grid;
+  gap: 8px;
   font-size: 11px;
   color: var(--muted);
 }
-.bottoms-photos {
-  position: relative;
-  height: 76vh;
+.showcase-bar {
+  display: block;
+  width: 120px;
+  height: 2px;
+  background: var(--line);
 }
-.bottoms-photo {
-  position: absolute;
-  inset: 0;
-  margin: 0 auto;
-  width: min(100%, calc(76vh * 0.77));
-  will-change: transform, opacity, filter;
+.showcase-bar span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transform-origin: left;
 }
-.bottoms-photo .shot-img {
-  object-position: center;
-  filter: drop-shadow(0 22px 22px rgb(0 0 0 / 0.14));
-}
-.bottoms-swipe {
+.showcase-list {
   display: none;
 }
 @media (max-width: 640px) {
-  .bottoms-pin {
+  /* item on top, text under it, no ghost */
+  .showcase-items {
+    top: 9svh;
+    transform: translateX(-50%);
+  }
+  .showcase--shoes .showcase-items {
+    top: 18svh;
+    height: 32svh;
+  }
+  .showcase-copy {
+    top: auto;
+    bottom: 13svh;
+    left: var(--gutter);
+    right: var(--gutter);
+    width: auto;
+    transform: none;
+  }
+  .showcase-count {
+    margin-bottom: 10px;
+  }
+  .showcase-name {
+    font-size: 26px;
+  }
+  .showcase-progress {
+    left: var(--gutter);
+    bottom: 5svh;
+  }
+}
+/* reduced motion: no pinning, a plain vertical list */
+@media (prefers-reduced-motion: reduce) {
+  .showcase-pin {
     display: none;
   }
-  .bottoms-swipe {
+  .showcase-list {
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 80vw;
-    gap: 12px;
+    gap: 40px;
+    justify-items: center;
     margin: 0;
-    padding: 0 10vw;
+    padding: 0 var(--gutter);
     list-style: none;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
   }
-  .bottoms-swipe::-webkit-scrollbar {
-    display: none;
-  }
-  .bottoms-swipe li {
-    scroll-snap-align: center;
-  }
-  .bottoms-card {
+  .showcase-card {
     display: grid;
     gap: 4px;
     justify-items: center;
@@ -1883,14 +1952,18 @@ button {
     color: inherit;
     text-decoration: none;
   }
-  .bottoms-card-shot {
+  .showcase-card-shot {
+    display: block;
     position: relative;
-    width: 100%;
+    width: min(80vw, 360px);
     aspect-ratio: 200 / 260;
     margin-bottom: 8px;
   }
-  .bottoms::before {
-    content: "Bottoms";
+  .showcase--shoes .showcase-card-shot {
+    aspect-ratio: 240 / 140;
+  }
+  .showcase::before {
+    content: attr(data-title);
     display: block;
     padding: 0 var(--gutter) 16px;
     font-size: 22px;
@@ -2521,7 +2594,10 @@ button {
   height: auto;
   transform: translateY(5.7%);
 }
-.bottoms-drawn {
-  height: 100%;
-  filter: drop-shadow(0 22px 22px rgb(0 0 0 / 0.14));
+@media (max-width: 640px) {
+  :root {
+    --showcase-seg: 60vh;
+    --showcase-h: 50svh;
+    --showcase-shoe-w: calc(100vw - 2 * var(--gutter));
+  }
 }

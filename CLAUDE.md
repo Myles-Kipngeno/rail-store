@@ -23,11 +23,9 @@ app/shop/[department]/page.tsx  department pages, SSG (generateStaticParams over
 app/shop/page.tsx            /shop → /shop/tops
 app/actions.ts               public server actions: newsletter `subscribe` (validates, then lib/db.ts addSubscriber)
 components/home/             sections below the rack, in page order (index.ts); each hides itself when empty
-  Bottoms.tsx                pinned scroll (100vh sticky, pairs × 80vh), scroll-linked crossfade; swipe carousel ≤640px.
-                             Loaded via BottomsLazy (next/dynamic) to keep useScroll off the first load.
-                             Uses function transforms only: range transforms get handed to a native
-                             ScrollTimeline, which throws for ranges outside 0..1 and crashes the page.
-  ShoeShelf.tsx              shoes on a floating shelf, CSS hover lift
+  Showcase.tsx               pinned scroll showcase, one per STORE.showcase department (see "Home sections").
+                             Loaded via ShowcaseLazy (next/dynamic) to keep useScroll off the first load.
+  ShoeShelf.tsx              ShoeItem: a shoe on the floating shelf (/shop/shoes), CSS hover lift
   Row.tsx (+ RowArrows)      New arrivals / Formal / Accessories scroll-snap card rows ("View all" → /shop/<dept>)
   OffTheRack.tsx             tilted customer photos from public/off-the-rack/*.jpg (redeploy after adding)
   Newsletter.tsx, Footer.tsx, Reveal.tsx (fade + 16px rise on first view)
@@ -77,6 +75,27 @@ Stock is per colour per size, and the size system comes from department/category
 - accessories: `ONE`
 
 A colourway may have `images.front/back` (real photos). Tops, bottoms and shoes have a drawn fallback: without a photo the SVG is drawn from `type` + `print`. `DRAWN_TYPES[department]` lists the shapes each may use (tops: tee…jersey; bottoms: pants, cargo, joggers, shorts; shoes: sneaker, boot, slide); `drawnType()` falls back to the department's first shape. `trim` is the rib/collar on tops, the waistband/cuffs on trousers (plus a side stripe when it differs from `hex`), and the sole on shoes. `printKindsFor(type)`: trousers take text/logo/letter (small, left thigh), shoes none. Formal and accessories need a front photo on every colour before they can be published (`hasDrawnFallback()`, enforced in `clean()`); drafts can be saved without one. New `garment_type` values need a migration (Postgres enum). Rack order = `products.position` (admin ↑/↓ changes it). Reads come from the `product_documents` view, already shaped as `Product`. `published: false` = draft, hidden from the store.
+
+## Home sections (app/page.tsx, components/home)
+Below the rack: one pinned showcase per department in `STORE.showcase` (lib/config.ts, now bottoms then shoes) that has 2+ published pieces with a photo or a drawing, in rack order. Then rows, Off the rack, newsletter and footer.
+
+Showcase (Showcase.tsx), the rules:
+- **Layout**: `.showcase-pin` is `100svh + n × --showcase-seg` tall (80vh, 60vh on phones); `.showcase-stage` is `sticky; top: 0; height: 100svh`, so it pins for n segments, then releases and scrolls away.
+  - Left column at `--showcase-x` (8vw): eyebrow = department, "N pairs" (bottoms/shoes) or "N pieces", name (display font), `formatKES` price, "View product" → `/p/<id>?c=<colourId>`.
+  - Centre: the current piece, `--showcase-h` (62svh) tall. Shoes use a narrower box, `--showcase-shoe-w`, so the ghost doesn't overlap them. The front photo of the first colour that has one, else the drawing. Clicking it opens the same link.
+  - Right, +26vw: the next piece as a ghost at opacity .14 and scale .92.
+  - Bottom-left: a "01 / 04" counter and a 2px progress bar.
+- **Motion**: each piece holds still for the first 65% of its segment. In the last 35% (eased with `cubic-bezier(.2,.8,.2,1)`):
+  - the current piece fades out and rises 24px;
+  - the ghost moves to the centre (scale → 1, opacity → 1) and a new ghost fades in;
+  - the text swaps with a masked slide (old up and out, new from below).
+
+  `position()` / `look()` in the file hold the maths. Function transforms only: range transforms of `useScroll` get handed to a native ScrollTimeline, which throws for ranges outside 0..1 and crashes the page.
+- **≤640px**: no ghost (the next piece fades in in place), text under the piece.
+- **prefers-reduced-motion**: the pinned stage is hidden and `.showcase-list` (a plain vertical list) shows instead.
+- **SVG ids**: drawn pieces use `idPrefix` "s" in the stage and "l" in the list, so no `url(#…)` points into a hidden copy.
+
+The item view hides `.home` and the footer while it's open (`html[data-item-open]`, set in Store.tsx). This locks page scroll to the rack without `overflow: hidden`, because on short screens the info panel needs to scroll.
 
 ## The rack UI spec (source of truth, keep it exactly)
 1. **Rack**: one rod; pieces edge-on at `rotateY(64deg)` in `--slot` wide slots, overlapping. Pieces after the hovered one turn the other way (`-64deg`).

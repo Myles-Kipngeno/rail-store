@@ -28,7 +28,7 @@ export function imgProps(src: string, alt: string, sizes: string): ImgProps {
     // Replaced at build time with next.config's images settings (same as next/image).
     { defaultLoader, imgConf: process.env.__NEXT_IMAGE_OPTS as unknown as ImageConfigComplete },
   );
-  // Drop undefined props so the object serializes cleanly to the client (Bottoms).
+  // Drop undefined props so the object serializes cleanly to the client (Showcase).
   for (const k of Object.keys(props) as (keyof typeof props)[]) if (props[k] === undefined) delete props[k];
   return props;
 }
